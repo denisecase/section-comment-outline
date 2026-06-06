@@ -59,5 +59,4 @@ jobs:
 
       # === Baseline Checks ===
       - name: B1) Run project checks
-        run: npm run check
-        # run: xvfb-run -a npm run check
+        run: xvfb-run -a npm run check

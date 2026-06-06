@@ -13,18 +13,30 @@ and this project adheres to **[Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.1.1] - 2026-06-06
+
+## Changed
+
+- Cleaned README release and publisher guidance.
+- Updated release workflow to package VSIX artifacts without requiring Marketplace publishing credentials.
+- Fixed CI extension-host tests on GitHub Actions by running them under `xvfb`.
+- Cleaned VSIX package contents to include only runtime files, package metadata,
+  documentation, license, citation, and icon assets.
+
+---
+
 ## [0.1.0] - 2026-06-06
 
-## Added
+### Added
 
-- Added initial VS Code extension scaffold.
+- Initial release of Comment Section Outline for Visual Studio Code.
 - Added support for section comment patterns:
   - `# === Section ===`
   - `// === Section ===`
   - `<!-- === Section === -->`
   - `/* === Section === */`
-- Added document symbol provider for repository,
-  configuration, documentation, workflow, and metadata files.
+- Added document symbol provider for repository, configuration, documentation,
+  workflow, and metadata files.
 - Added configurable section pattern support through VS Code settings.
 - Added TypeScript source structure:
   - `src/extension.ts`
@@ -38,15 +50,20 @@ and this project adheres to **[Semantic Versioning](https://semver.org/spec/v2.0
   - TOML-style files
   - YAML-style files
   - VS Code JSONC-style files
-- Added automated project checks for formatting, type checking,
-  linting, extension tests, and runtime dependency audit.
+- Added automated project checks for formatting, type checking, linting,
+  extension-host tests, VSIX packaging, and runtime dependency audit.
 - Added GitHub Actions workflows for TypeScript CI, link checking, and VS Code extension release packaging.
-- Added repository infrastructure files for editor consistency,
-  Git normalization, ignored files, Markdown linting, YAML linting,
-  Dependabot, Lychee link checking, and pre-commit support.
+- Added Marketplace package assets, including extension icon and cleaned VSIX package contents.
+- Added repository infrastructure files for editor consistency, Git normalization,
+  ignored files, Markdown linting, YAML linting, Dependabot, Lychee link checking, and pre-commit support.
 - Added accountability surface declaration for broad repository review boundaries.
-- Added citation metadata, license, agent instructions,
-  annotations, and README documentation.
+- Added citation metadata, license, changelog, agent instructions, annotations, and README documentation.
+
+### Known notes
+
+- `npm audit --omit=dev` reports zero runtime vulnerabilities.
+- Full `npm audit` may report a dev-only Mocha transitive dependency issue for `serialize-javascript`.
+- This dependency is not included in the packaged VS Code extension.
 
 ---
 
@@ -80,11 +97,6 @@ npm install
 npm run format
 npm run check
 npm run package:vsix
-
-# generate and check CODEOWNERS
-uvx section-comment-outline generate
-uvx section-comment-outline generate --strict --output .github/CODEOWNERS
-uvx section-comment-outline check
 ```
 
 ### Task 3. Commit, push, and tag
@@ -120,7 +132,8 @@ git push origin :refs/tags/vX.Z.Y
 
 ## Links
 
-[Unreleased]: https://github.com/structural-explainability/section-comment-outline/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/structural-explainability/section-comment-outline/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/structural-explainability/section-comment-outline/releases/tag/v0.1.1
 [0.1.0]: https://github.com/structural-explainability/section-comment-outline/releases/tag/v0.1.0
 
 <!-- markdownlint-enable MD024 -->

@@ -3,26 +3,26 @@
 # ============================================================
 # Updated: 2026-06-06
 #
-# REQ: VS Code extension repositories SHOULD provide a reproducible release workflow.
-# WHY: Package and optionally publish the extension from a clean GitHub Actions environment.
-# OBS: Publishing requires marketplace credentials stored as GitHub secrets.
-# CUSTOM: Enable marketplace publishing only after publisher/token setup is complete.
+# REQ: VS Code extension repositories SHOULD provide a reproducible package workflow.
+# WHY: Build and archive the VSIX release candidate from a clean GitHub Actions environment.
+# OBS: Marketplace publishing is intentionally manual until VSCE_PAT automation is configured.
+# CUSTOM: Add automated Marketplace publishing only after the publisher PAT flow is working.
 
 name: Release VS Code Extension
 
 # === Workflow triggers ===
 
 on:
-  workflow_dispatch:
-    inputs:
-      publish:
-        description: "Publish to VS Code Marketplace"
-        required: true
-        default: "false"
-        type: choice
-        options:
-          - "false"
-          - "true"
+  workflow_dispatch: # WHY: Manual package candidate creation.
+  push:
+    tags:
+      - "v*" # WHY: Package release candidates for version tags.
+
+# === Concurrency ===
+
+concurrency:
+  group: release-vscode-extension-${{ github.ref || github.run_id }}
+  cancel-in-progress: true
 
 # === Permissions ===
 
@@ -33,7 +33,7 @@ permissions:
 
 jobs:
   package:
-    name: Create release candidate
+    name: Package VS Code extension
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -63,21 +63,18 @@ jobs:
 
       # === Candidate: Package ===
 
-      - name: C1) Package extension
-        run: npx @vscode/vsce package
+      - name: C1) Package VSIX
+        run: npm run package:vsix
+
+      # === Candidate: Inspect ===
+
+      - name: C2) List VSIX contents
+        run: npx @vscode/vsce ls --tree
 
       # === Candidate: Artifact ===
 
-      - name: C2) Upload VSIX artifact
+      - name: C3) Upload VSIX artifact
         uses: actions/upload-artifact@v7
         with:
-          name: vsix
+          name: comment-section-outline-vsix
           path: "*.vsix"
-
-      # === Deploy and publish ===
-
-      - name: D1) Publish extension
-        if: ${{ github.event.inputs.publish == 'true' }}
-        uses: HaaLeo/publish-vscode-extension@v2
-        with:
-          pat: ${{ secrets.VSCE_PAT }}

@@ -212,16 +212,28 @@ requires_review = ["human_review", "security_review"]
 requires_evidence = ["verification_command_result"]
 ai_max_authority = "drafting"
 
+# --- Extension assets ---
+
+[[surface]]
+id = "extension-assets"
+object_kind = "directory"
+paths = ["images/**"]
+description = "Extension icon and source image assets used for Marketplace presentation and local package metadata."
+oversight_role = "extension"
+codeowners_order = 230
+
+[[surface.role]]
+kind = "project_identity_surface"
+requires_review = ["human_review"]
+requires_evidence = ["decision_note", "verification_command_result"]
+ai_max_authority = "drafting"
 
 # --- TypeScript and linting configuration ---
 
 [[surface]]
 id = "typescript-tooling-configuration"
 object_kind = "directory"
-paths = [
-    "eslint.config.mjs",
-    "tsconfig.json",
-]
+paths = ["eslint.config.mjs", "tsconfig.json", "tsconfig.test.json"]
 description = "TypeScript, ESLint, compiler, and source-quality configuration for the extension."
 oversight_role = "maintainer"
 codeowners_order = 220
@@ -252,6 +264,7 @@ paths = [
     ".gitignore",
     ".markdownlint-cli2.yaml",
     ".pre-commit-config.yaml",
+    ".vscodeignore",
     ".github/.yamllint.yml",
     ".github/dependabot.yml",
     ".github/lychee.toml",
@@ -273,10 +286,7 @@ ai_max_authority = "drafting"
 [[surface]]
 id = "local-helper-scripts"
 object_kind = "directory"
-paths = [
-    "rel.ps1",
-    "shape.ps1",
-]
+paths = ["rel.ps1", "shape.ps1"]
 description = "Local maintainer helper scripts for repository inspection, validation, packaging, or release preparation."
 oversight_role = "maintainer"
 codeowners_order = 310
@@ -320,11 +330,7 @@ ai_max_authority = "advisory"
 [[surface]]
 id = "documentation"
 object_kind = "directory"
-paths = [
-    "README.md",
-    "CITATION.cff",
-    "LICENSE",
-]
+paths = ["CHANGELOG.md", "CITATION.cff", "LICENSE", "README.md"]
 description = "User-facing extension documentation, citation metadata, license, usage guidance, badges, and project links."
 oversight_role = "maintainer"
 codeowners_order = 500
@@ -341,10 +347,7 @@ ai_max_authority = "drafting"
 [[surface]]
 id = "repository-governance"
 object_kind = "directory"
-paths = [
-    ".annotations/**",
-    "AGENTS.md",
-]
+paths = [".annotations/**", "AGENTS.md"]
 description = "Repository-local agent instructions, annotations, and governance guidance for AI-assisted development."
 oversight_role = "owner"
 codeowners_order = 510

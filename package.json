@@ -2,7 +2,7 @@
   "name": "comment-section-outline",
   "displayName": "Comment Section Outline",
   "description": "Shows structured comment section headers in the VS Code Outline.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "DeniseCase",
   "license": "MIT",
   "icon": "images/icon-192x192.png",
