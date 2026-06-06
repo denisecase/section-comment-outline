@@ -1,0 +1,86 @@
+# ============================================================
+# .vscodeignore
+# ============================================================
+# Updated: 2026-06-06
+#
+# REQ: VS Code extension packages SHOULD exclude source, tests, local state,
+# CI configuration, generated artifacts, and repository-only governance files.
+# WHY: Keep the VSIX small and focused on runtime extension assets.
+# OBS: Do not ignore runtime out/*.js, package.json, README.md, LICENSE,
+# CHANGELOG.md, or the icon referenced by package.json.
+
+
+# === Source and tests ===
+
+src/**
+test/**
+*.ts
+tsconfig.json
+tsconfig.test.json
+eslint.config.mjs
+
+
+# === Test compile output ===
+
+out/src/**
+out/test/**
+
+
+# === Source maps ===
+
+*.js.map
+out/**/*.js.map
+
+
+# === Local development state ===
+
+.vscode/**
+.vscode-test/**
+node_modules/.cache/**
+*.tsbuildinfo
+
+
+# === Repository infrastructure ===
+
+.github/**
+.accountability/**
+.annotations/**
+.editorconfig
+.gitattributes
+.gitignore
+.markdownlint-cli2.yaml
+.pre-commit-config.yaml
+.vscodeignore
+AGENTS.md
+shape.ps1
+rel.ps1
+
+
+# === Generated packages and build artifacts ===
+
+*.vsix
+coverage/**
+.nyc_output/**
+dist/**
+build/**
+
+
+# === Icon source / unused favicon outputs ===
+
+images/favicon_io/**
+images/sco-1254x1254.png
+!images/icon-192x192.png
+
+
+# === Dependency and audit metadata not needed at runtime ===
+
+package-lock.json
+
+
+# === Logs and temporary files ===
+
+*.log
+*.tmp
+*.swp
+*.swo
+*~

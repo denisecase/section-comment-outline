@@ -3,8 +3,9 @@
   "displayName": "Comment Section Outline",
   "description": "Shows structured comment section headers in the VS Code Outline.",
   "version": "0.1.0",
-  "publisher": "denisecase",
+  "publisher": "DeniseCase",
   "license": "MIT",
+  "icon": "images/icon-192x192.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/denisecase/section-comment-outline.git"
@@ -47,12 +48,13 @@
   },
   "scripts": {
     "audit:runtime": "npm audit --omit=dev",
+    "clean": "node -e \"require('fs').rmSync('out',{recursive:true,force:true}); require('fs').rmSync('comment-section-outline-0.1.0.vsix',{force:true})\"",
     "compile": "tsc -p ./tsconfig.json",
     "compile:test": "tsc -p ./tsconfig.test.json",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint src test",
-    "package:vsix": "npx @vscode/vsce package",
+    "package:vsix": "npm run clean && npm run compile && npx @vscode/vsce package",
     "test": "npm run compile:test && node ./out/test/runTest.js",
     "typecheck": "tsc --noEmit -p ./tsconfig.test.json",
     "vscode:prepublish": "npm run compile",
