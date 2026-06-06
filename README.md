@@ -1,9 +1,9 @@
 # Comment Section Outline (VS Code Extension)
 
-[![Visual Studio Marketplace Version](https://img.shields.io/visual-studio-marketplace/v/DeniseCase.comment-section-outline)](https://marketplace.visualstudio.com/items?itemName=DeniseCase.comment-section-outline)
-[![CI TypeScript](https://github.com/denisecase/section-comment-outline/actions/workflows/ci-ts.yml/badge.svg)](https://github.com/denisecase/section-comment-outline/actions/workflows/ci-ts.yml)
+[![VS Code Marketplace](https://img.shields.io/badge/VS%20Code%20Marketplace-published-blue)](https://marketplace.visualstudio.com/items?itemName=DeniseCase.comment-section-outline)
+[![CI TypeScript](https://github.com/denisecase/section-comment-outline/actions/workflows/ci-ts.yml/badge.svg?branch=main)](https://github.com/denisecase/section-comment-outline/actions/workflows/ci-ts.yml)
+[![Release VS Code Extension](https://github.com/denisecase/section-comment-outline/actions/workflows/release-vs-code-extension.yml/badge.svg?branch=main)](https://github.com/denisecase/section-comment-outline/actions/workflows/release-vs-code-extension.yml)
 [![Check Links](https://github.com/denisecase/section-comment-outline/actions/workflows/links.yml/badge.svg)](https://github.com/denisecase/section-comment-outline/actions/workflows/links.yml)
-[![Release VS Code Extension](https://github.com/denisecase/section-comment-outline/actions/workflows/release-vs-code-extension.yml/badge.svg)](https://github.com/denisecase/section-comment-outline/actions/workflows/release-vs-code-extension.yml)
 [![MIT](https://img.shields.io/badge/license-see%20LICENSE-yellow.svg)](./LICENSE)
 
 ## Overview
@@ -83,8 +83,8 @@ Microsoft's verified publisher process requires the publisher
 to prove control of an identifying domain,
 typically through DNS verification,
 and the publisher/domain must meet Marketplace eligibility requirements.
-Until verification is complete, users may rely on the public repository,
-source code, and packaged VSIX artifact as the trust evidence for this project.
+Until verification is complete, users may rely on the public repository, source code,
+CI checks, and packaged VSIX artifact as the trust evidence for this project.
 
 ## Developer Command Reference
 

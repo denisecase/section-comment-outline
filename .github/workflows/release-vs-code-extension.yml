@@ -15,6 +15,7 @@ name: Release VS Code Extension
 on:
   workflow_dispatch: # WHY: Manual package candidate creation.
   push:
+    branches: [main]
     tags:
       - "v*" # WHY: Package release candidates for version tags.
 
