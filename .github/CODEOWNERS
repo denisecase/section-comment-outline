@@ -1,0 +1,68 @@
+# ============================================================
+# .github/CODEOWNERS
+# ============================================================
+# GENERATED FILE -- do not edit by hand.
+#
+# Source:     .accountability/surfaces.toml
+# Generator:  se-codeowners
+# Repository: section-comment-outline
+# Regenerate: se-codeowners generate --output .github/CODEOWNERS
+#
+# [codeowners].informs = true means this surfaces manifest intentionally
+# informs the generated GitHub CODEOWNERS projection.
+#
+# [codeowners].requires_code_owner_review = false
+# records whether repository governance expects GitHub branch protection or
+# rulesets to require CODEOWNER review before protected changes merge.
+# Actual enforcement is configured in GitHub, not in this generated file.
+#
+# Each entry reflects the oversight_role assigned to an accountability
+# surface, resolved to a handle via [codeowners.role_handles]. GitHub
+# applies the LAST matching pattern for a given path, so order matters.
+# Surfaces are emitted by codeowners_order, then surface id.
+
+# Surface: extension-source (role: extension)
+/src/**                         @denisecase
+
+# Surface: extension-tests-and-fixtures (role: maintainer)
+/test/**                        @denisecase
+
+# Surface: extension-manifest (role: extension)
+/package.json                   @denisecase
+
+# Surface: dependency-lock (role: release)
+/package-lock.json              @denisecase
+
+# Surface: typescript-tooling-configuration (role: maintainer)
+/eslint.config.mjs              @denisecase
+/tsconfig.json                  @denisecase
+
+# Surface: repository-configuration (role: maintainer)
+/.editorconfig                  @denisecase
+/.gitattributes                 @denisecase
+/.gitignore                     @denisecase
+/.markdownlint-cli2.yaml        @denisecase
+/.pre-commit-config.yaml        @denisecase
+/.github/.yamllint.yml          @denisecase
+/.github/dependabot.yml         @denisecase
+/.github/lychee.toml            @denisecase
+/.vscode/**                     @denisecase
+
+# Surface: local-helper-scripts (role: maintainer)
+/rel.ps1                        @denisecase
+/shape.ps1                      @denisecase
+
+# Surface: github-platform (role: release)
+/.github/workflows/**           @denisecase
+
+# Surface: documentation (role: maintainer)
+/README.md                      @denisecase
+/CITATION.cff                   @denisecase
+/LICENSE                        @denisecase
+
+# Surface: repository-governance (role: owner)
+/.annotations/**                @denisecase
+/AGENTS.md                      @denisecase
+
+# Surface: authority-manifest (role: owner)
+/.accountability/surfaces.toml  @denisecase

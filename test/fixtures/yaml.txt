@@ -1,0 +1,27 @@
+# ============================================================
+# .github/workflows/ci.yml
+# ============================================================
+
+name: CI
+
+# This ordinary comment should not appear in Outline.
+
+# === Workflow triggers ===
+
+on:
+  workflow_dispatch:
+  pull_request:
+
+# === Permissions ===
+
+permissions:
+  contents: read
+
+# === Jobs ===
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6

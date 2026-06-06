@@ -1,0 +1,158 @@
+# ============================================================
+# .pre-commit-config.yaml (TypeScript Hygiene)
+# ============================================================
+# Updated: 2026-06-06
+#
+# REQ.TYPESCRIPT: Professional TypeScript projects SHOULD include a
+# .pre-commit-config.yaml to minimize git diffs and support collaboration.
+# WHY: Provide fast, consistent checks before committing code.
+#
+# OBS: These hooks use and do NOT override:
+#   - .editorconfig (whitespace / indentation)
+#   - .gitattributes (EOL normalization)
+#   - package.json (TypeScript / Node scripts)
+#   - tsconfig.json (TypeScript compiler settings)
+#
+# OPTIONAL LOCAL USAGE:
+#   You must have Node.js, npm, and pre-commit available locally.
+#   Run these commands once from the repo root to enable pre-commit:
+#
+#   npm install
+#   npx pre-commit install
+#   npx pre-commit run --all-files
+#
+# Alternative if using uvx:
+#
+#   uvx pre-commit install
+#   uvx pre-commit run --all-files
+#
+# This enables the pre-commit hooks for this project repo.
+# ALL subsequent commits in this repo will AUTOMATICALLY run these
+# pre-commit hooks, after `git add` and before `git commit`.
+#
+# NOTE: enabling pre-commit is optional. It is not needed to clone or commit.
+#
+# === TYPESCRIPT HOOK ORDER ===
+#
+# PRE-COMMIT ORDER:
+#   1. Normalize files.
+#   2. Validate structured text.
+#   3. Check common repository problems.
+#   4. Run TypeScript / extension project checks.
+#
+# WHY: Cheap cross-platform file checks run first. Project checks run after
+# basic file hygiene so TypeScript, ESLint, Prettier, and tests see stable input.
+
+exclude: |
+  (?x)^(
+    \.DS_Store|
+    \.coverage|
+    \.mypy_cache/|
+    \.nox/|
+    \.pytest_cache/|
+    \.ruff_cache/|
+    \.tox/|
+    \.venv/|
+    .*\.log|
+    __pycache__/|
+    build/|
+    coverage/|
+    coverage\.xml|
+    dist/|
+    htmlcov/|
+    node_modules/|
+    out/|
+    site/|
+    tmp/
+  )
+
+repos:
+  # === REPO: PRE-COMMIT HOOKS ===
+  #
+  # WHY: These hooks prevent noisy diffs, broken structured files,
+  # merge artifacts, and cross-platform filename problems.
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      # === Normalize file formatting ===
+
+      - id: trailing-whitespace
+        name: A1) Clean trailing whitespace
+        args: [--markdown-linebreak-ext=md]
+
+      - id: end-of-file-fixer
+        name: A2) End files with a newline
+
+      - id: mixed-line-ending
+        name: A3) Normalize line endings to LF before checks
+        args: [--fix=lf]
+
+      # === Validate structured text ===
+
+      - id: check-json
+        name: B1) Validate JSON syntax
+        # WHY: VS Code settings may include comments, which are non-standard JSON.
+        exclude: ^\.vscode/.*\.json$
+
+      - id: check-toml
+        name: B2) Validate TOML syntax
+
+      - id: check-yaml
+        name: B3) Validate YAML syntax
+        files: \.(yml|yaml)$
+
+      # === Check common repository problems ===
+
+      - id: check-added-large-files
+        name: C1) Prevent accidental commits of large binaries
+        args: [--maxkb=2000]
+
+      - id: check-merge-conflict
+        name: C2) Prevent committing merge conflicts
+
+      - id: check-case-conflict
+        name: C3) Check for filename case conflicts
+
+  # === REPO: LOCAL TYPESCRIPT / EXTENSION CHECKS ===
+  #
+  # WHY: Use package.json scripts as the source of truth for the TypeScript
+  # project. This avoids duplicating ESLint, Prettier, TypeScript, and test
+  # settings inside pre-commit.
+
+  - repo: local
+    hooks:
+      # === TypeScript project checks ===
+
+      - id: npm-format-check
+        name: D1) Prettier format check
+        entry: npm run format:check
+        language: system
+        pass_filenames: false
+        files: \.(json|jsonc|md|ts|tsx|yml|yaml)$
+
+      - id: npm-lint
+        name: D2) ESLint
+        entry: npm run lint
+        language: system
+        pass_filenames: false
+        files: \.(ts|tsx)$
+
+      - id: npm-typecheck
+        name: D3) TypeScript type check
+        entry: npm run typecheck
+        language: system
+        pass_filenames: false
+        files: \.(ts|tsx|json|jsonc)$
+
+      - id: npm-test
+        name: D4) Extension tests
+        entry: npm test
+        language: system
+        pass_filenames: false
+        files: \.(ts|tsx|json|jsonc)$
+
+# === Global settings ===
+
+# ALT: Set fail_fast to true to stop at first failure.
+fail_fast: false

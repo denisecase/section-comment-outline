@@ -1,0 +1,23 @@
+# ============================================================
+# .gitattributes (ALL-REPOS)
+# ============================================================
+
+# This comment should not appear in Outline.
+
+# === Core defaults ===
+
+* text=auto eol=lf
+
+# === Named root and metadata files ===
+
+CODEOWNERS  text eol=lf
+LICENSE     text eol=lf
+
+# === Programming languages and scripts ===
+
+*.py  text eol=lf
+*.ts  text eol=lf
+
+# === Logs and generated runtime output ===
+
+*.log  binary

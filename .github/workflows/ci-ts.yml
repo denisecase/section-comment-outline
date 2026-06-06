@@ -1,0 +1,63 @@
+# ============================================================
+# .github/workflows/ci-ts.yml (Typescript repositories)
+# ============================================================
+# Updated: 2026-06-06
+#
+# REQ: TypeScript extension repositories SHOULD run automated CI checks.
+# WHY: Verify formatting, type checking, linting, compilation, and tests in GitHub Actions.
+# OBS: package.json scripts are the source of truth for project checks.
+# CUSTOM: Update Node version only when the supported extension/tooling baseline changes.
+
+name: CI (TypeScript)
+
+# === Workflow triggers ===
+
+on:
+  push:
+    branches: [main] # WHY: Validate every push to main.
+  pull_request:
+    branches: [main] # WHY: Validate PRs before merge.
+  workflow_dispatch: # WHY: Allow manual trigger from Actions tab.
+
+# === Concurrency ===
+
+concurrency:
+  group: ci-ts-${{ github.ref || github.run_id }}
+  cancel-in-progress: true
+
+# === Permissions ===
+
+permissions:
+  contents: read
+
+# === Jobs ===
+
+jobs:
+  ci:
+    name: Check TypeScript extension
+    runs-on: ubuntu-latest # WHY: Linux matches most production deployments.
+    timeout-minutes: 20 # WHY: Fail fast if a step hangs unexpectedly.
+
+    steps:
+      # === Assemble: Checkout ===
+
+      - name: A1) Checkout repository code
+        uses: actions/checkout@v6
+
+      # === Assemble: Node setup ===
+
+      - name: A2) Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      # === Assemble: Install ===
+
+      - name: A3) Install dependencies
+        run: npm ci
+
+      # === Baseline Checks ===
+      - name: B1) Run project checks
+        run: npm run check
+        # run: xvfb-run -a npm run check

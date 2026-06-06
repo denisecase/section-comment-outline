@@ -1,0 +1,92 @@
+# ============================================================
+# .markdownlint-cli2.yaml (ALL-REPOS)
+# ============================================================
+# Updated: 2026-06-06
+#
+# REQ.UNIVERSAL: All professional GitHub project repositories MUST lint authored Markdown.
+# WHY: Check README and documentation Markdown while ignoring virtual
+# environments, dependency trees, caches, build output, and generated docs.
+# CUSTOM: Add ignores only for generated or external content that should not
+# be linted as authored documentation.
+
+# === Authored Markdown inputs ===
+
+globs:
+  - "**/*.md"
+
+# === Generated, dependency, cache, and non-source ignores ===
+
+ignores:
+  # WHY: Virtual environments and dependency trees are not authored Markdown.
+  - ".venv/**"
+  - "**/.venv/**"
+  - "node_modules/**"
+  - "**/node_modules/**"
+
+  # WHY: Build and distribution output is generated.
+  - "build/**"
+  - "**/build/**"
+  - "dist/**"
+  - "**/dist/**"
+  - "site/**"
+  - "**/site/**"
+
+  # WHY: Tool caches and coverage output are generated.
+  - ".mypy_cache/**"
+  - "**/.mypy_cache/**"
+  - ".nox/**"
+  - "**/.nox/**"
+  - ".pytest_cache/**"
+  - "**/.pytest_cache/**"
+  - ".pyright/**"
+  - "**/.pyright/**"
+  - ".ruff_cache/**"
+  - "**/.ruff_cache/**"
+  - ".tox/**"
+  - "**/.tox/**"
+  - ".uv-cache/**"
+  - "**/.uv-cache/**"
+  - "htmlcov/**"
+  - "**/htmlcov/**"
+
+  # WHY: Extensionless repository metadata files are not authored Markdown.
+  - "LICENSE"
+  - "CODEOWNERS"
+  - ".github/CODEOWNERS"
+  - "**/CODEOWNERS"
+  - "**/.github/CODEOWNERS"
+
+# === Markdown lint defaults ===
+
+config:
+  # WHY: Enable default rules as a stable baseline for authored Markdown.
+  default: true
+
+  # === Line length ===
+
+  MD013:
+    line_length: 100
+    # WHY: Long headings can be necessary for clarity and SEO.
+    headings: false
+    # WHY: Long table cells can be necessary for readability and completeness.
+    tables: false
+    # WHY: Long lines in code blocks can be necessary for accurate examples.
+    code_blocks: false
+
+  # === Document structure ===
+
+  # WHY: Allow multiple top-level headings in README and documentation index files.
+  MD025: false
+
+  # === Inline HTML ===
+
+  MD033:
+    allowed_elements:
+      # WHY: Details/summary blocks are useful for collapsible documentation.
+      - details
+      - summary
+      # WHY: Link/meta elements are sometimes needed for documentation metadata.
+      - link
+      - meta
+      # WHY: Mark elements are useful for highlighting.
+      - mark

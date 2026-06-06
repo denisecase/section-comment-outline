@@ -1,0 +1,27 @@
+// ============================================================
+// .vscode/settings.json
+// ============================================================
+// Updated: 2026-06-06
+// NOTE: Comments are not allowed in standard JSON files,
+// but Microsoft allows them in their .vscode config files.
+{
+  // ============================================================
+  // === EDITOR BEHAVIOR ===
+  // ============================================================
+  "editor.formatOnSave": false,
+  "editor.tabSize": 2,
+  // ============================================================
+  // === TYPESCRIPT AND JAVASCRIPT ===
+  // ============================================================
+  "js/ts.tsdk.path": "node_modules/typescript/lib",
+  "js/ts.preferences.importModuleSpecifier": "relative",
+  // ============================================================
+  // === YAML SCHEMAS ===
+  // ============================================================
+  "yaml.schemas": {
+    "https://json.schemastore.org/github-workflow.json": [
+      ".github/workflows/*.yml",
+      ".github/workflows/*.yaml",
+    ],
+  },
+}

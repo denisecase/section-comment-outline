@@ -1,0 +1,24 @@
+# ============================================================
+# .accountability/surfaces.toml
+# ============================================================
+
+schema = "accountable-surface-spec"
+schema_version = "0.1.0"
+
+# === Repository identity ===
+
+[repository]
+name = "section-comment-outline"
+profile = "vscode-extension-surface"
+
+# === Declared repository surfaces ===
+
+[[surface]]
+id = "extension-source"
+paths = ["src/**"]
+
+# === Required self-protection ===
+
+[[surface]]
+id = "authority-manifest"
+paths = [".accountability/surfaces.toml"]

@@ -1,0 +1,26 @@
+{
+  // ============================================================
+  // tsconfig.test.json
+  // ============================================================
+  // Updated: 2026-06-06
+  //
+  // REQ: VS Code extension repositories SHOULD compile tests with a separate test config.
+  // WHY: Keep runtime extension output separate from test harness output while
+  // still allowing tests to import source modules.
+  // OBS: Test files compile to out/test/ and source files compile to out/.
+  // CUSTOM: Keep this aligned with tsconfig.json when TypeScript target settings change.
+
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // === Test output layout ===
+
+    "rootDir": ".",
+    "outDir": "out",
+
+    // === Ambient test types ===
+
+    "types": ["node", "vscode", "mocha"]
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"],
+  "exclude": ["node_modules", "out", "dist", ".vscode-test"]
+}

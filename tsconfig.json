@@ -1,0 +1,48 @@
+{
+  // ============================================================
+  // tsconfig.json
+  // ============================================================
+  // Updated: 2026-06-06
+  //
+  // REQ: TypeScript extension projects SHOULD define runtime compiler settings explicitly.
+  // WHY: Compile extension source predictably from src/ to out/ for VS Code packaging.
+  // OBS: Tests use tsconfig.test.json and compile separately into out/test/.
+  // CUSTOM: Adjust target/module settings only when VS Code extension tooling requires it.
+
+  "compilerOptions": {
+    // === Language and runtime target ===
+
+    "target": "ES2022",
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "lib": ["ES2022"],
+
+    // === Source and output layout ===
+
+    "rootDir": "src",
+    "outDir": "out",
+
+    // === Type checking ===
+
+    "strict": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+
+    // === Module interoperability ===
+
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+
+    // === Source maps ===
+
+    "sourceMap": true,
+
+    // === Ambient extension types ===
+
+    "types": ["node", "vscode"]
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "out", "dist", ".vscode-test", "test"]
+}

@@ -1,0 +1,47 @@
+# ============================================================
+# CITATION.cff
+# ============================================================
+# Updated: 2026-06-06
+#
+# REQ: Professional open projects SHOULD include citation metadata.
+# WHY: Support correct citation, attribution, and scholarly/professional reuse.
+# ALT: Internal or private repositories may omit citation metadata.
+# CUSTOM: Update title, abstract, repository URLs, release date, version, and keywords.
+# USAGE: See https://citation-file-format.github.io/ for details.
+
+cff-version: "1.2.0"
+type: software
+
+title: "section-comment-outline: VS Code outline support for structured comment sections"
+version: "0.1.0"
+date-released: "2026-06-06"
+
+authors:
+  - family-names: Case
+    given-names: Denise M.
+    orcid: "https://orcid.org/0000-0001-6165-7389"
+    affiliation: "Northwest Missouri State University, School of Computer Science and Information Systems, Maryville, MO, USA"
+
+repository-code: "https://github.com/denisecase/section-comment-outline"
+url: "https://github.com/denisecase/section-comment-outline"
+license: MIT
+
+abstract: >
+  section-comment-outline is a Visual Studio Code extension that exposes
+  structured comment section headers as Outline symbols in repository,
+  configuration, documentation, workflow, and metadata files. It supports
+  navigation of files that do not otherwise provide useful document symbols,
+  such as .gitattributes, CODEOWNERS, YAML workflows, TOML configuration,
+  Markdown documents, and other operational project files.
+
+keywords:
+  - vscode
+  - vscode-extension
+  - outline
+  - document-symbols
+  - comments
+  - navigation
+  - developer-tools
+  - typescript
+
+message: "If using this work, please cite it as described in this file."

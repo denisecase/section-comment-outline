@@ -1,0 +1,391 @@
+# ============================================================
+# .accountability/surfaces.toml
+# ============================================================
+# Updated: 2026-06-06
+#
+# REQ: Declare broad protected surfaces for this VS Code extension repository.
+# WHY: Identify repository areas where changes affect extension behavior,
+# publishing, automation, documentation, dependency risk, and authority boundaries.
+# CUSTOM: Keep surfaces broad and folder-based; do not encode transient files.
+
+schema = "accountable-surface-spec"
+schema_version = "0.1.0"
+schema_url = "https://raw.githubusercontent.com/structural-explainability/accountable-surface-spec/main/data/schema/accountability-surfaces.schema.json"
+
+
+# === Framework context ===
+
+[meta]
+framework = "Accountable Repository Surfaces"
+framework_url = "https://github.com/denisecase/section-comment-outline"
+purpose = "Declares authority-bearing repository surfaces, review requirements, evidence requirements, and permitted AI authority."
+
+
+# === Repository identity ===
+
+[repository]
+organization = "denisecase"
+name = "section-comment-outline"
+profile = "vscode-extension-surface"
+description = "VS Code extension that exposes structured comment section headers as Outline symbols in repository, configuration, documentation, and metadata files."
+enforcement = "advisory"
+scope = "maintainer"
+oversight_model = "role-based"
+
+
+# === CODEOWNERS projection ===
+
+[codeowners]
+informs = true
+requires_code_owner_review = false
+
+
+# === Local CODEOWNERS role resolution ===
+
+[codeowners.role_handles]
+owner = "@denisecase"
+maintainer = "@denisecase"
+extension = "@denisecase"
+release = "@denisecase"
+security = "@denisecase"
+
+
+# === Required oversight role ===
+
+[oversight_roles.owner]
+label = "Owner"
+description = "Reviews changes to the repository's own accountability declaration and authority boundary."
+maps_to = ["authority_boundary", "authority_manifest_surface"]
+requires_review = ["human_review"]
+requires_evidence = ["decision_note", "human_review_record"]
+ai_max_authority = "prohibited"
+
+
+# === Additional local oversight roles ===
+
+[oversight_roles.maintainer]
+label = "Maintainer"
+description = "Reviews repository documentation, tests, configuration, and routine maintenance surfaces."
+maps_to = [
+    "documentation_contract",
+    "project_identity_surface",
+    "tool_configuration",
+    "validation_rule",
+]
+requires_review = ["human_review"]
+requires_evidence = ["decision_note", "verification_command_result"]
+ai_max_authority = "drafting"
+
+[oversight_roles.extension]
+label = "Extension"
+description = "Reviews extension runtime behavior, VS Code API usage, activation behavior, and package manifest contract."
+maps_to = [
+    "public_contract",
+    "public_command_surface",
+    "tool_configuration",
+    "validation_rule",
+]
+requires_review = ["human_review"]
+requires_evidence = ["decision_note", "verification_command_result"]
+ai_max_authority = "drafting"
+
+[oversight_roles.release]
+label = "Release"
+description = "Reviews packaging, publishing, CI, dependency update, and marketplace release authority."
+maps_to = ["release_authority", "workflow_authority"]
+requires_review = ["human_review", "release_review", "security_review"]
+requires_evidence = ["decision_note", "verification_command_result"]
+ai_max_authority = "advisory"
+
+[oversight_roles.security]
+label = "Security"
+description = "Reviews repository surfaces that affect security posture, automation trust, dependency risk, or disclosure process."
+maps_to = ["dependency_boundary", "security_boundary", "workflow_authority"]
+requires_review = ["human_review", "security_review"]
+requires_evidence = ["decision_note", "verification_command_result"]
+ai_max_authority = "advisory"
+
+
+# === Declared repository surfaces ===
+
+# Surfaces are organized by CODEOWNERS processing order.
+# CODEOWNERS applies the LAST matching pattern for a path, so broad surfaces
+# must emit before narrower override surfaces.
+#
+# codeowners_order controls projection order.
+# Lower values emit earlier; later matching patterns take precedence.
+# Ties are emitted alphabetically by surface id.
+
+
+# === Level 100: Extension source and tests ===
+
+# --- Extension source ---
+
+[[surface]]
+id = "extension-source"
+object_kind = "directory"
+paths = ["src/**"]
+description = "VS Code extension implementation, including activation, configuration loading, section parsing, and document symbol provider behavior."
+oversight_role = "extension"
+codeowners_order = 100
+
+[[surface.role]]
+kind = "public_contract"
+requires_review = ["human_review"]
+requires_evidence = ["decision_note", "verification_command_result"]
+ai_max_authority = "drafting"
+
+[[surface.role]]
+kind = "validation_rule"
+requires_review = ["human_review"]
+requires_evidence = ["verification_command_result"]
+ai_max_authority = "drafting"
+
+
+# --- Extension tests and fixtures ---
+
+[[surface]]
+id = "extension-tests-and-fixtures"
+object_kind = "directory"
+paths = ["test/**"]
+description = "Extension tests and fixture files that define expected Outline behavior for supported section comment styles."
+oversight_role = "maintainer"
+codeowners_order = 110
+
+[[surface.role]]
+kind = "validation_rule"
+requires_review = ["human_review"]
+requires_evidence = ["verification_command_result"]
+ai_max_authority = "drafting"
+
+
+# === Level 200: Extension manifest and tooling ===
+
+# --- VS Code extension manifest ---
+
+[[surface]]
+id = "extension-manifest"
+object_kind = "file"
+paths = ["package.json"]
+description = "VS Code extension identity, activation events, contribution points, scripts, dependencies, and marketplace metadata."
+oversight_role = "extension"
+codeowners_order = 200
+
+[[surface.role]]
+kind = "dependency_boundary"
+requires_review = ["human_review", "security_review"]
+requires_evidence = ["verification_command_result"]
+ai_max_authority = "drafting"
+
+[[surface.role]]
+kind = "project_identity_surface"
+requires_review = ["human_review"]
+requires_evidence = ["decision_note"]
+ai_max_authority = "drafting"
+
+[[surface.role]]
+kind = "public_contract"
+requires_review = ["human_review"]
+requires_evidence = ["decision_note", "verification_command_result"]
+ai_max_authority = "drafting"
+
+[[surface.role]]
+kind = "tool_configuration"
+requires_review = ["human_review"]
+requires_evidence = ["verification_command_result"]
+ai_max_authority = "drafting"
+
+
+# --- Dependency lock ---
+
+[[surface]]
+id = "dependency-lock"
+object_kind = "file"
+paths = ["package-lock.json"]
+description = "Dependency lockfile surface for reproducible Node/TypeScript extension builds."
+oversight_role = "release"
+codeowners_order = 210
+
+[[surface.role]]
+kind = "dependency_boundary"
+requires_review = ["human_review", "security_review"]
+requires_evidence = ["verification_command_result"]
+ai_max_authority = "drafting"
+
+
+# --- TypeScript and linting configuration ---
+
+[[surface]]
+id = "typescript-tooling-configuration"
+object_kind = "directory"
+paths = [
+    "eslint.config.mjs",
+    "tsconfig.json",
+]
+description = "TypeScript, ESLint, compiler, and source-quality configuration for the extension."
+oversight_role = "maintainer"
+codeowners_order = 220
+
+[[surface.role]]
+kind = "tool_configuration"
+requires_review = ["human_review"]
+requires_evidence = ["verification_command_result"]
+ai_max_authority = "drafting"
+
+[[surface.role]]
+kind = "validation_rule"
+requires_review = ["human_review"]
+requires_evidence = ["verification_command_result"]
+ai_max_authority = "drafting"
+
+
+# === Level 300: Repository configuration ===
+
+# --- Repository configuration ---
+
+[[surface]]
+id = "repository-configuration"
+object_kind = "directory"
+paths = [
+    ".editorconfig",
+    ".gitattributes",
+    ".gitignore",
+    ".markdownlint-cli2.yaml",
+    ".pre-commit-config.yaml",
+    ".github/.yamllint.yml",
+    ".github/dependabot.yml",
+    ".github/lychee.toml",
+    ".vscode/**",
+]
+description = "Shared repository hygiene, editor behavior, text normalization, ignored files, dependency update configuration, lint configuration, and local development settings."
+oversight_role = "maintainer"
+codeowners_order = 300
+
+[[surface.role]]
+kind = "tool_configuration"
+requires_review = ["human_review"]
+requires_evidence = ["verification_command_result"]
+ai_max_authority = "drafting"
+
+
+# --- Local helper scripts ---
+
+[[surface]]
+id = "local-helper-scripts"
+object_kind = "directory"
+paths = [
+    "rel.ps1",
+    "shape.ps1",
+]
+description = "Local maintainer helper scripts for repository inspection, validation, packaging, or release preparation."
+oversight_role = "maintainer"
+codeowners_order = 310
+
+[[surface.role]]
+kind = "tool_configuration"
+requires_review = ["human_review"]
+requires_evidence = ["verification_command_result"]
+ai_max_authority = "drafting"
+
+
+# === Level 400: Release and automation authority ===
+
+# --- GitHub platform and automation ---
+
+[[surface]]
+id = "github-platform"
+object_kind = "directory"
+paths = [".github/workflows/**"]
+description = "GitHub workflows for TypeScript CI, link checking, extension packaging, artifact upload, and optional marketplace publishing."
+oversight_role = "release"
+codeowners_order = 400
+
+[[surface.role]]
+kind = "release_authority"
+requires_review = ["human_review", "release_review", "security_review"]
+requires_evidence = ["decision_note", "verification_command_result"]
+ai_max_authority = "advisory"
+
+[[surface.role]]
+kind = "workflow_authority"
+requires_review = ["human_review", "security_review"]
+requires_evidence = ["decision_note", "verification_command_result"]
+ai_max_authority = "advisory"
+
+
+# === Level 500: Documentation and governance ===
+
+# --- Documentation ---
+
+[[surface]]
+id = "documentation"
+object_kind = "directory"
+paths = [
+    "README.md",
+    "CITATION.cff",
+    "LICENSE",
+]
+description = "User-facing extension documentation, citation metadata, license, usage guidance, badges, and project links."
+oversight_role = "maintainer"
+codeowners_order = 500
+
+[[surface.role]]
+kind = "documentation_contract"
+requires_review = ["human_review"]
+requires_evidence = ["decision_note"]
+ai_max_authority = "drafting"
+
+
+# --- Repository governance ---
+
+[[surface]]
+id = "repository-governance"
+object_kind = "directory"
+paths = [
+    ".annotations/**",
+    "AGENTS.md",
+]
+description = "Repository-local agent instructions, annotations, and governance guidance for AI-assisted development."
+oversight_role = "owner"
+codeowners_order = 510
+
+[[surface.role]]
+kind = "documentation_contract"
+requires_review = ["human_review"]
+requires_evidence = ["decision_note"]
+ai_max_authority = "drafting"
+
+[[surface.role]]
+kind = "security_boundary"
+requires_review = ["human_review", "security_review"]
+requires_evidence = ["decision_note"]
+ai_max_authority = "advisory"
+
+
+# === Level 900: Required self-protection ===
+
+# Every accountable-surface manifest MUST declare itself as a protected surface.
+# If an actor with technical capability can rewrite the authority declaration
+# without review, technical capability has silently become authority.
+
+# --- Authority manifest self-protection ---
+
+[[surface]]
+id = "authority-manifest"
+object_kind = "file"
+paths = [".accountability/surfaces.toml"]
+description = "Self-protecting authority manifest for this repository."
+oversight_role = "owner"
+codeowners_order = 900
+
+[[surface.role]]
+kind = "authority_boundary"
+requires_review = ["human_review"]
+requires_evidence = ["decision_note", "human_review_record"]
+ai_max_authority = "prohibited"
+
+[[surface.role]]
+kind = "authority_manifest_surface"
+requires_review = ["human_review"]
+requires_evidence = ["decision_note", "human_review_record"]
+ai_max_authority = "prohibited"
