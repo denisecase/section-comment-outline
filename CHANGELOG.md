@@ -15,19 +15,22 @@ and this project adheres to **[Semantic Versioning](https://semver.org/spec/v2.0
 
 ## [0.2.0] - 2026-11-19
 
-## Added
+### Added
 
-- added "github-actions-workflow" to extension.ts.
+- Support section comment headings in `.github/workflows` files opened
+  in VS Code's GitHub Actions language mode.
 
-## Updated
+### Changed
 
-- updated actions
+- Use Node.js 26 LTS for CI and VSIX packaging.
+- Pin GitHub Actions to commit SHAs and disable npm caching when packaging
+  the VSIX.
 
 ---
 
 ## [0.1.1] - 2026-06-06
 
-## Changed
+### Changed
 
 - Cleaned README release and publisher guidance.
 - Updated release workflow to package VSIX artifacts without requiring Marketplace publishing credentials.
@@ -79,14 +82,17 @@ and this project adheres to **[Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
-## Notes on versioning and releases
+## Notes on Versioning and Releases
 
 - We use **SemVer**:
-  - \*_MAJOR_- - breaking changes
-  - \*_MINOR_- - backward-compatible changes
-  - \*_PATCH_- - fixes, documentation, tooling
+  - **MAJOR** - breaking changes
+  - **MINOR** - backward-compatible features
+  - **PATCH** - backward-compatible fixes, documentation, and tooling updates
 - Versions are driven by git tags.
 - Tag `vX.Y.Z` to mark a release.
+- `package.json` determines the version embedded in the VSIX.
+- The release workflow checks the project, packages the VSIX, and uploads
+  it as a GitHub Actions artifact.
 - VS Code extension packaging is performed through the
   release workflow or locally with `vsce`.
 
@@ -99,11 +105,19 @@ Follow these steps exactly when creating a new release.
 1.1. CITATION.cff: update version and date-released
 1.2. CHANGELOG.md: add section, move unreleased entries, update links
 1.3. package.json: update version
+1.4. README.md: update version in Install locally section.
 
 ### Task 2. Validate
 
 ```shell
-npm install
+# Update dependencies within the version ranges declared in package.json.
+npm update --include=dev
+
+# Install from the updated package-lock.json, including build and test tools.
+npm ci --include=dev
+
+# Audit dependencies, including development dependencies.
+npm audit --include=dev
 
 # process
 npm run format
@@ -144,7 +158,8 @@ git push origin :refs/tags/vX.Z.Y
 
 ## Links
 
-[Unreleased]: https://github.com/denisecase/section-comment-outline/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/denisecase/section-comment-outline/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/denisecase/section-comment-outline/releases/tag/v0.2.0
 [0.1.1]: https://github.com/denisecase/section-comment-outline/releases/tag/v0.1.1
 
 <!-- markdownlint-enable MD024 -->

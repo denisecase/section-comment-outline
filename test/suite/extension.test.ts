@@ -11,7 +11,7 @@
 import * as assert from "assert";
 import * as path from "path";
 import * as vscode from "vscode";
-
+import { check } from "./check";
 import { SectionSymbolProvider } from "../../src/sectionSymbolProvider";
 
 // === Test helpers ===
@@ -41,8 +41,8 @@ function assertSymbolNames(actual: string[], expected: string[]): void {
 
 // === Extension tests ===
 
-suite("Comment Section Outline extension", () => {
-  test("extracts sections from gitattributes fixture", async () => {
+export async function runExtensionTests(): Promise<void> {
+  await check("extracts sections from gitattributes fixture", async () => {
     const names = await getSymbolNames("gitattributes.txt");
 
     assertSymbolNames(names, [
@@ -53,19 +53,19 @@ suite("Comment Section Outline extension", () => {
     ]);
   });
 
-  test("extracts sections from Markdown fixture", async () => {
+  await check("extracts sections from Markdown fixture", async () => {
     const names = await getSymbolNames("markdown.md");
 
     assertSymbolNames(names, ["Overview", "Usage", "Configuration"]);
   });
 
-  test("extracts sections from PowerShell fixture", async () => {
+  await check("extracts sections from PowerShell fixture", async () => {
     const names = await getSymbolNames("powershell.ps1");
 
     assertSymbolNames(names, ["Setup", "Validate", "Complete"]);
   });
 
-  test("extracts sections from TOML fixture", async () => {
+  await check("extracts sections from TOML fixture", async () => {
     const names = await getSymbolNames("toml.txt");
 
     assertSymbolNames(names, [
@@ -75,9 +75,9 @@ suite("Comment Section Outline extension", () => {
     ]);
   });
 
-  test("extracts sections from YAML fixture", async () => {
+  await check("extracts sections from YAML fixture", async () => {
     const names = await getSymbolNames("yaml.txt");
 
     assertSymbolNames(names, ["Workflow triggers", "Permissions", "Jobs"]);
   });
-});
+}

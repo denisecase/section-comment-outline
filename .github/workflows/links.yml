@@ -54,7 +54,6 @@ jobs:
     timeout-minutes: 10 # WHY: Prevent unreachable external sites from hanging CI.
 
     steps:
-
       # === ASSEMBLE ===
 
       - name: A1) Checkout repository code

@@ -48,7 +48,7 @@ npm run package:vsix
 Then install the generated .vsix file in VS Code:
 
 ```shell
-code --install-extension comment-section-outline-0.1.0.vsix
+code --install-extension comment-section-outline-0.2.0.vsix
 ```
 
 After installation, open a supported file such as

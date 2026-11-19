@@ -13,10 +13,10 @@
   "compilerOptions": {
     // === Language and runtime target ===
 
-    "target": "ES2022",           // WHY: Emit JavaScript using ES2022 syntax or earlier.
-    "module": "Node16",           // WHY: Follow Node's CommonJS and ES module rules.
+    "target": "ES2022", // WHY: Emit JavaScript using ES2022 syntax or earlier.
+    "module": "Node16", // WHY: Follow Node's CommonJS and ES module rules.
     "moduleResolution": "Node16", // WHY: Resolve imports using the matching Node rules.
-    "lib": ["ES2022"],            // WHY: Type-check against ES2022 built-in JavaScript APIs.
+    "lib": ["ES2022"], // WHY: Type-check against ES2022 built-in JavaScript APIs.
 
     // === Source and output layout ===
 

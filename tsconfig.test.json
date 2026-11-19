@@ -19,7 +19,7 @@
 
     // === Ambient test types ===
 
-    "types": ["node", "vscode", "mocha"]
+    "types": ["node", "vscode"]
   },
   "include": ["src/**/*.ts", "test/**/*.ts"],
   "exclude": ["node_modules", "out", "dist", ".vscode-test"]

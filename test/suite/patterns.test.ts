@@ -8,7 +8,7 @@
 // CUSTOM: Add cases when new supported comment styles are introduced.
 
 import * as assert from "assert";
-
+import { check } from "./check";
 import { DEFAULT_SECTION_PATTERNS, compilePatterns } from "../../src/config";
 
 // === Test helpers ===
@@ -30,57 +30,57 @@ function findSectionName(line: string): string | undefined {
 
 // === Pattern tests ===
 
-suite("Section comment patterns", () => {
-  test("matches hash comment section headers", () => {
+export async function runPatternTests(): Promise<void> {
+  await check("matches hash comment section headers", () => {
     assert.strictEqual(
       findSectionName("# === Core defaults ==="),
       "Core defaults",
     );
   });
 
-  test("matches slash comment section headers", () => {
+  await check("matches slash comment section headers", () => {
     assert.strictEqual(
       findSectionName("// === TypeScript project rules ==="),
       "TypeScript project rules",
     );
   });
 
-  test("matches Markdown HTML comment section headers", () => {
+  await check("matches Markdown HTML comment section headers", () => {
     assert.strictEqual(
       findSectionName("<!-- === Configuration === -->"),
       "Configuration",
     );
   });
 
-  test("matches block comment section headers", () => {
+  await check("matches block comment section headers", () => {
     assert.strictEqual(
       findSectionName("/* === Extension source === */"),
       "Extension source",
     );
   });
 
-  test("trims section names", () => {
+  await check("trims section names", () => {
     assert.strictEqual(
       findSectionName("# ===   Named root and metadata files   ==="),
       "Named root and metadata files",
     );
   });
 
-  test("does not match ordinary hash comments", () => {
+  await check("does not match ordinary hash comments", () => {
     assert.strictEqual(
       findSectionName("# This ordinary comment should not appear in Outline."),
       undefined,
     );
   });
 
-  test("does not match ordinary Markdown comments", () => {
+  await check("does not match ordinary Markdown comments", () => {
     assert.strictEqual(
       findSectionName("<!-- This ordinary comment should not appear. -->"),
       undefined,
     );
   });
 
-  test("ignores invalid custom regex patterns", () => {
+  await check("ignores invalid custom regex patterns", () => {
     const patterns = compilePatterns([
       "^\\s*#\\s*===\\s*(.*?)\\s*===\\s*$",
       "[",
@@ -96,4 +96,4 @@ suite("Section comment patterns", () => {
       "Valid section",
     );
   });
-});
+}
