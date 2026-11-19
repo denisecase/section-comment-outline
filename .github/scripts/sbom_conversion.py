@@ -145,6 +145,24 @@ def ecosystem(record, fmt, rules):
     return next(iter(values)) if len(values) == 1 else None
 
 
+def declared_in(record, fmt, rules):
+    """Return the declaring file path, or None if the rules give no single answer."""
+    values = set()
+    for rule in rules:
+        if rule["format"] != fmt:
+            continue
+        if "property" in rule:
+            found = [
+                p.get("value") for p in record.get("properties", [])
+                if p.get("name") == rule["property"]
+            ]
+        else:
+            _, marker, tail = record.get(rule["field"], "").rpartition(rule["after"])
+            found = [tail] if marker else []
+        values.update(v.lstrip("/") for v in found if v)
+    return next(iter(values)) if len(values) == 1 else None
+
+
 def cdx_components(doc):
     """Include the described component and nested inventory components."""
     pending = list(doc.get("components", []))
@@ -158,7 +176,9 @@ def cdx_components(doc):
             yield component
 
 
-def records(doc, fmt, rules):
+def records(doc, fmt, policies):
+    ecosystem_rules = policies.get("ecosystem_rule", [])
+    location_rules = policies.get("declared_in_rule", [])
     result = []
     items = cdx_components(doc) if fmt == "cdx" else doc.get("packages", [])
     for index, item in enumerate(items):
@@ -182,7 +202,8 @@ def records(doc, fmt, rules):
             "id": identifier or f"{fmt}-record-{index}",
             "name": item.get("name"),
             "version": version,
-            "ecosystem": ecosystem(item, fmt, rules),
+            "ecosystem": ecosystem(item, fmt, ecosystem_rules),
+            "declared_in": declared_in(item, fmt, location_rules),
             "purls": purls,
             "hashes": hashes,
         })
@@ -243,6 +264,7 @@ def evaluate(source, target, policy):
         details.append({
             "source_record": record["id"],
             "candidate_targets": [target[j]["id"] for j in sorted(matches)],
+            "source_evidence": [list(key) for key in sorted(evidence)],
             "source_purls": sorted(record["purls"]),
             "target_purls": sorted(target_purls) if target_purls is not None else None,
             "outcome": outcome,
@@ -250,9 +272,31 @@ def evaluate(source, target, policy):
     return details
 
 
+def evaluated(label, stem, source, target, policies, status):
+    """Evaluate one source and target under every policy; return rows and evidence."""
+    rows = []
+    evidence = []
+    for policy in policies["policy"]:
+        details = evaluate(source, target, policy)
+        counts = Counter(row["outcome"] for row in details)
+        cells = " | ".join(str(counts[k]) for k in OUTCOMES)
+        unkeyed = sum(1 for record in target if not keys(record, policy))
+        rows.append(
+            f"| {label} | {policy['id']} | {cells} | {unkeyed}/{len(target)} | {status} |"
+        )
+        evidence.append({
+            "route": stem,
+            "policy": policy["id"],
+            "target_records": len(target),
+            "target_unkeyed": unkeyed,
+            "records": details,
+        })
+    return rows, evidence
+
+
 def unevaluated(label, policies, status):
     return [
-        f"| {label} | {policy['id']} | — | — | — | — | — | {status} |"
+        f"| {label} | {policy['id']} | — | — | — | — | — | — | {status} |"
         for policy in policies["policy"]
     ]
 
@@ -261,7 +305,7 @@ def inspect(routes, policies):
     sources = {}
     for fmt, spec in routes["source"].items():
         doc = read_document(original(fmt), fmt, spec["version"])
-        sources[fmt] = records(doc, fmt, policies.get("ecosystem_rule", []))
+        sources[fmt] = records(doc, fmt, policies)
 
     source_run = json.loads((OUT / "source-run.json").read_bytes())
     report = [
@@ -274,14 +318,34 @@ def inspect(routes, policies):
         "",
         (
             "| Route | Policy | Preserved | Changed | Missing source evidence | "
-            "No target match | Ambiguous | Status |"
+            "No target match | Ambiguous | Unkeyed targets | Status |"
         ),
-        "|---|---|---:|---:|---:|---:|---:|---|",
+        "|---|---|---:|---:|---:|---:|---:|---:|---|",
     ]
     evidence = []
     failures = []  # converter outcomes: reported, but do not affect the exit code
     inspection_errors = []  # config, evaluator, or output-writing faults
     completed = 0
+
+    # WHY: Comparing the two originals without conversion shows how much of each
+    #      outcome comes from the evidence policy and the source, not a converter.
+    #      Meaningful only when both originals describe the same scan.
+    baseline = []
+    pairs = dict.fromkeys((r["source"], r["target"]) for r in routes["route"])
+    for src, dst in pairs:
+        label = f"{src} → {dst} (original pair)"
+        try:
+            rows, details = evaluated(
+                label, f"sbom.{src}.to.{dst}.original-pair",
+                sources[src], sources[dst], policies, "Baseline",
+            )
+        except (ValueError, KeyError) as exc:
+            inspection_errors.append(f"{label}: {type(exc).__name__}: {exc}")
+            report.extend(unevaluated(label, policies, "Inspection error"))
+        else:
+            report.extend(rows)
+            baseline.extend(details)
+
     with tempfile.TemporaryDirectory() as temp:
         work = Path(temp)
         commands = {}
@@ -318,20 +382,13 @@ def inspect(routes, policies):
                     doc = read_document(pending, dst, expected)
                 except (OSError, ValueError, subprocess.SubprocessError) as exc:
                     raise ConverterFailure(str(exc)) from exc
-                target = records(doc, dst, policies.get("ecosystem_rule", []))
-                rows = []
-                for policy in policies["policy"]:
-                    details = evaluate(sources[src], target, policy)
-                    counts = Counter(row["outcome"] for row in details)
-                    cells = " | ".join(str(counts[k]) for k in OUTCOMES)
-                    rows.append((
-                        f"| {label} | {policy['id']} | {cells} | Evaluated |",
-                        {"route": stem, "policy": policy["id"], "records": details},
-                    ))
+                target = records(doc, dst, policies)
+                rows, details = evaluated(
+                    label, stem, sources[src], target, policies, "Evaluated"
+                )
                 shutil.copyfile(pending, output)
-                for line, detail in rows:
-                    report.append(line)
-                    evidence.append(detail)
+                report.extend(rows)
+                evidence.extend(details)
                 completed += 1
             except ConverterFailure as exc:
                 failures.append(f"{label}: {exc}")
@@ -351,6 +408,13 @@ def inspect(routes, policies):
             "Counts represent source package records carrying a PURL. "
             "A dash indicates that evaluation could not run."
         ),
+        "",
+        (
+            "Unkeyed targets are target package records with no evidence under the "
+            "policy, so they cannot be matched. A no-target-match result may reflect "
+            "missing evidence rather than loss. Baseline rows compare the two original "
+            "SBOMs without conversion."
+        ),
     ])
     if failures:
         report.extend(["", "### Converter failures", ""])
@@ -360,7 +424,7 @@ def inspect(routes, policies):
         report.extend(f"- {message}" for message in inspection_errors)
 
     (OUT / "summary.md").write_text("\n".join(report) + "\n", encoding="utf-8")
-    (OUT / "records.json").write_text(json.dumps(evidence, indent=2) + "\n")
+    (OUT / "records.json").write_text(json.dumps(baseline + evidence, indent=2) + "\n")
     for path in (ROUTES_FILE, POLICIES_FILE):
         shutil.copyfile(path, OUT / path.name)
     with (OUT / "SHA256SUMS").open("w") as manifest:

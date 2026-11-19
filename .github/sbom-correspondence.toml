@@ -7,8 +7,9 @@
 #      individual correspondence for either source occurrence.
 # OBS: PURL comparison uses exact recorded strings within each matched pair.
 # OBS: Source coverage includes package records carrying at least one PURL.
-#      Target candidates include package records with zero PURLs so complete
-#      PURL loss remains detectable.
+#      Target candidates include package records with zero PURLs when they carry
+#      policy evidence. Target records without evidence are counted separately
+#      as unkeyed because they cannot be matched.
 # ============================================================
 
 # ============================================================
@@ -39,6 +40,18 @@ fields = ["name", "version"]
 id = "ecosystem-name-version"
 method = "exact-fields"
 fields = ["ecosystem", "name", "version"]
+
+# ============================================================
+# === POLICY 4: USE NAME, VERSION, DECLARING FILE ===
+# ============================================================
+
+# OBS: Added after the first inspection run showed repeated name and version
+#      pairs from different workflow files. Exploratory, not a frozen policy.
+# WHY: The declaring file is evidence independent of the PURL under test.
+[[policy]]
+id = "name-version-declared-in"
+method = "exact-fields"
+fields = ["name", "version", "declared_in"]
 
 # ============================================================
 # === ECOSYSTEM EVIDENCE RULES ===
@@ -73,3 +86,19 @@ format = "spdx"
 field = "sourceInfo"
 starts_with = "acquired package info from installed node module manifest file:"
 ecosystem = "npm"
+
+# ============================================================
+# === DECLARING FILE EVIDENCE RULES ===
+# ============================================================
+
+# WHY: Syft records where it found each package. Leading slashes are removed
+#      so the CycloneDX and SPDX paths compare equal. Only the first location
+#      is read. A missing or conflicting declaration leaves the file unknown.
+[[declared_in_rule]]
+format = "cdx"
+property = "syft:location:0:path"
+
+[[declared_in_rule]]
+format = "spdx"
+field = "sourceInfo"
+after = "file: "

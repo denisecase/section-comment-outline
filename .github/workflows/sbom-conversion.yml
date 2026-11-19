@@ -13,7 +13,8 @@
 #      Per-record evaluation reports both preservation and the evidence
 #      available to establish correspondence.
 #
-# OBS: The Actions summary contains one row per route and policy.
+# OBS: The Actions summary contains one row per route and policy, plus one
+#      baseline row per direction comparing the two original SBOMs.
 #      The artifact includes originals, successful conversions, tool logs,
 #      record-level results, configuration, and file checksums.
 # ============================================================

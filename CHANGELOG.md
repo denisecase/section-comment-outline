@@ -140,6 +140,8 @@ npm run check
 # Example output: comment-section-outline-x.y.z.vsix
 npm run package:vsix
 
+npm run format
+
 # Update GitHub Actions references and pin them to full commit SHAs.
 uvx gha-tools autoupdate --pin=all --write .github/workflows
 
