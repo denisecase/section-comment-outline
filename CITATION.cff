@@ -13,7 +13,7 @@ cff-version: "1.2.0"
 type: software
 
 title: "section-comment-outline: VS Code outline support for structured comment sections"
-version: "0.2.0"
+version: "0.2.1"
 date-released: "2026-11-19"
 
 authors:

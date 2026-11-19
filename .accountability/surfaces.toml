@@ -286,7 +286,7 @@ ai_max_authority = "drafting"
 [[surface]]
 id = "local-helper-scripts"
 object_kind = "directory"
-paths = ["rel.ps1", "shape.ps1"]
+paths = ["shape.ps1"]
 description = "Local maintainer helper scripts for repository inspection, validation, packaging, or release preparation."
 oversight_role = "maintainer"
 codeowners_order = 310

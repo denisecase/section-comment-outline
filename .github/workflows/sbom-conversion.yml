@@ -87,7 +87,6 @@ jobs:
       # ============================================================
       # === B) BUILD AND EVALUATE CONVERSION ROUTES ===
       # ============================================================
-
       - name: B1) Prepare converters and evaluate configured routes
         run: python3 .github/scripts/sbom_conversion.py inspect
         # OBS: A failed route is recorded. The remaining routes still run.

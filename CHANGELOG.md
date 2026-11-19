@@ -11,6 +11,10 @@ and this project adheres to **[Semantic Versioning](https://semver.org/spec/v2.0
 
 ## [Unreleased]
 
+---
+
+## [0.2.1] - 2026-11-19
+
 ### Added
 
 - sbom conversion action
@@ -123,10 +127,24 @@ npm ci --include=dev
 # Audit dependencies, including development dependencies.
 npm audit --include=dev
 
-# process
+# run format command
 npm run format
+
+# run check command
+# The tests launch VS Code, load the development extension, and check its Outline entries.
+# GitHub and Copilot startup messages may appear.
+# No sign-in is required.
 npm run check
+
+# Build the installable VSIX using the extension name and version from package.json.
+# Example output: comment-section-outline-x.y.z.vsix
 npm run package:vsix
+
+# Update GitHub Actions references and pin them to full commit SHAs.
+uvx gha-tools autoupdate --pin=all --write .github/workflows
+
+# Audit GitHub Actions configuration and apply available fixes, including unsafe fixes.
+uvx zizmor@latest .github/ --fix=all
 ```
 
 ### Task 3. Commit, push, and tag
@@ -170,7 +188,8 @@ git push origin :refs/tags/vX.Z.Y
 
 ## Links
 
-[Unreleased]: https://github.com/denisecase/section-comment-outline/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/denisecase/section-comment-outline/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/denisecase/section-comment-outline/releases/tag/v0.2.1
 [0.2.0]: https://github.com/denisecase/section-comment-outline/releases/tag/v0.2.0
 [0.1.1]: https://github.com/denisecase/section-comment-outline/releases/tag/v0.1.1
 
