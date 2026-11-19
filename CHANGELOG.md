@@ -13,6 +13,18 @@ and this project adheres to **[Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.0] - 2026-11-19
+
+## Added
+
+- added "github-actions-workflow" to extension.ts.
+
+## Updated
+
+- updated actions
+
+---
+
 ## [0.1.1] - 2026-06-06
 
 ## Changed
@@ -132,8 +144,7 @@ git push origin :refs/tags/vX.Z.Y
 
 ## Links
 
-[Unreleased]: https://github.com/structural-explainability/section-comment-outline/compare/v0.1.1...HEAD
-[0.1.1]: https://github.com/structural-explainability/section-comment-outline/releases/tag/v0.1.1
-[0.1.0]: https://github.com/structural-explainability/section-comment-outline/releases/tag/v0.1.0
+[Unreleased]: https://github.com/denisecase/section-comment-outline/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/denisecase/section-comment-outline/releases/tag/v0.1.1
 
 <!-- markdownlint-enable MD024 -->

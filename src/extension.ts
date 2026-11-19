@@ -9,6 +9,7 @@ export function activate(context: vscode.ExtensionContext): void {
     { scheme: "file", language: "properties" },
     { scheme: "file", language: "toml" },
     { scheme: "file", language: "yaml" },
+    { scheme: "file", language: "github-actions-workflow" },
     { scheme: "file", language: "jsonc" },
     { scheme: "file", language: "markdown" },
     { scheme: "file", language: "shellscript" },
