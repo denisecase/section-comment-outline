@@ -1,0 +1,56 @@
+# ============================================================
+# .github/sbom-correspondence.toml
+# ============================================================
+# REQ: Correspondence evidence must be independent of the PURL under test.
+# REQ: An authorized match must be unique in both directions.
+# WHY: A target record claimed by two source records cannot establish
+#      individual correspondence for either source occurrence.
+# OBS: PURL comparison uses exact recorded strings within each matched pair.
+# OBS: Source coverage includes package records carrying at least one PURL.
+#      Target candidates include package records with zero PURLs so complete
+#      PURL loss remains detectable.
+# ============================================================
+
+# ============================================================
+# === POLICY 1: USE PACKAGE HASH (3 ALGORITHMS) ===
+# ============================================================
+
+[[policy]]
+id = "package-hash"
+method = "shared-package-digest"
+algorithms = ["SHA-1", "SHA-256", "SHA-512"]
+
+# ============================================================
+# === POLICY 2: USE ECOSYSTEM, NAME, VERSION ===
+# ============================================================
+
+[[policy]]
+id = "ecosystem-name-version"
+method = "exact-fields"
+fields = ["ecosystem", "name", "version"]
+
+# ============================================================
+# === ECOSYSTEM EVIDENCE RULES ===
+# ============================================================
+
+# WHY: A CycloneDX property can explicitly identify the package ecosystem.
+#      Only declared values participate in the correspondence policy.
+[[ecosystem_rule]]
+format = "cdx"
+property = "syft:package:type"
+equals = "github-action"
+ecosystem = "github-actions"
+
+[[ecosystem_rule]]
+format = "cdx"
+property = "syft:package:type"
+equals = "npm"
+ecosystem = "npm"
+
+# WHY: The observed Syft SPDX sourceInfo explicitly identifies this cataloger.
+#      A missing or unrecognized declaration leaves the ecosystem unknown.
+[[ecosystem_rule]]
+format = "spdx"
+field = "sourceInfo"
+starts_with = "acquired package info from GitHub Actions workflow file or composite action file:"
+ecosystem = "github-actions"

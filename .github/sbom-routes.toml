@@ -1,0 +1,96 @@
+# ============================================================
+# .github/sbom-routes.toml
+# ============================================================
+# REQ: Each route converts one original SBOM into one target SBOM.
+# WHY: Every converter in a given direction receives the same input bytes.
+# OBS: The source artifact names match .github/workflows/sbom.yml.
+# OBS: Route arguments are passed directly to the executable.
+#      {input} and {output} represent individual filesystem paths.
+# ============================================================
+
+# ============================================================
+# === TWO SOURCE FORMATS ===
+# ============================================================
+
+[source.cdx]
+artifact = "sbom.cdx.json"
+version = "1.7"
+
+[source.spdx]
+artifact = "sbom.spdx.json"
+version = "SPDX-2.3"
+
+# ============================================================
+# === FOUR CONVERTERS ===
+# ============================================================
+
+[tool.cdx2spdx]
+revision = "v0.1.5"
+
+[tool.cyclonedx-cli]
+revision = "v0.33.1"
+
+[tool.protobom]
+revision = "6de9da2583d9df7deae34a99d869da3a4d2b7b0f"
+
+[tool.syft]
+revision = "v1.57.2"
+
+# ============================================================
+# === ROUTES: CycloneDX to SPDX (FOUR ROUTES) ===
+# ============================================================
+
+[[route]]
+source = "cdx"
+target = "spdx"
+tool = "cdx2spdx"
+args = ["{input}", "{output}"]
+
+[[route]]
+source = "cdx"
+target = "spdx"
+tool = "cyclonedx-cli"
+args = [
+  "convert", "--input-file", "{input}", "--input-format", "json",
+  "--output-file", "{output}", "--output-format", "spdxjson",
+]
+
+[[route]]
+source = "cdx"
+target = "spdx"
+tool = "protobom"
+args = ["convert", "{input}", "-f", "spdx-2.3"]
+stdout = true
+
+[[route]]
+source = "cdx"
+target = "spdx"
+tool = "syft"
+args = ["convert", "{input}", "-o", "spdx-json={output}"]
+
+# ============================================================
+# === ROUTES: SPDX to CycloneDX (THREE ROUTES) ===
+# ============================================================
+
+[[route]]
+source = "spdx"
+target = "cdx"
+tool = "cyclonedx-cli"
+args = [
+  "convert", "--input-file", "{input}", "--input-format", "spdxjson",
+  "--output-file", "{output}", "--output-format", "json",
+  "--output-version", "v1_7",
+]
+
+[[route]]
+source = "spdx"
+target = "cdx"
+tool = "protobom"
+args = ["convert", "{input}", "-f", "cyclonedx-1.7"]
+stdout = true
+
+[[route]]
+source = "spdx"
+target = "cdx"
+tool = "syft"
+args = ["convert", "{input}", "-o", "cyclonedx-json={output}"]

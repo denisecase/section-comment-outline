@@ -11,6 +11,10 @@ and this project adheres to **[Semantic Versioning](https://semver.org/spec/v2.0
 
 ## [Unreleased]
 
+### Added
+
+- sbom conversion action
+
 ---
 
 ## [0.2.0] - 2026-11-19
@@ -140,14 +144,22 @@ git tag vX.Y.Z -m "X.Y.Z"
 git push origin vX.Y.Z
 ```
 
-### Task 4. Package or Publish
+### Task 4. Publish the tagged VSIX to the VS Code Marketplace
 
-Use the manual GitHub Actions release workflow:
-
-.github/workflows/release-vs-code-extension.yml
-
-Run it with publish=false to package only.
-Run it with publish=true only after marketplace credentials are configured.
+1. Open the [extension packaging workflow](https://github.com/denisecase/section-comment-outline/actions/workflows/release-vs-code-extension.yml).
+2. Click the run for the tag just pushed. Wait for the green check mark.
+3. On that run's **Summary** page, scroll to **Artifacts**.
+   Click `comment-section-outline-vsix` to download the ZIP to Downloads/.
+4. Extract the ZIP. For `v0.2.0`, the file to upload is
+   `comment-section-outline-0.2.0.vsix`.
+5. Open [Manage Publishers](https://marketplace.visualstudio.com/manage)
+   and sign in with the Microsoft account that manages the extension.
+6. Select **DeniseCase**. On the **Comment Section Outline** row,
+   click the "More" icon (three dots) and select **Update**.
+7. Select the `.vsix` extracted in step 4 and click **Upload**.
+8. After Marketplace verification completes, open the
+   [Comment Section Outline listing](https://marketplace.visualstudio.com/items?itemName=DeniseCase.comment-section-outline).
+   Click **Version History** and confirm the new version appears.
 
 ## Only As Needed (delete a tag)
 

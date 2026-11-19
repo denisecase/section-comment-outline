@@ -1,0 +1,119 @@
+# ============================================================
+# .github/workflows/sbom-conversion.yml (CUSTOM, opt-in inspection)
+# ============================================================
+# Updated: 2026-11-19
+#
+# REQ: Inspect CycloneDX and SPDX artifacts produced by one successful
+#      execution of .github/workflows/sbom.yml on main.
+# REQ: Execute the routes declared in .github/sbom-routes.toml.
+# REQ: Evaluate each successful route under every correspondence policy
+#      declared in .github/sbom-correspondence.toml.
+#
+# WHY: Document-wide PURL counts can agree while individual records differ.
+#      Per-record evaluation reports both preservation and the evidence
+#      available to establish correspondence.
+#
+# OBS: The Actions summary contains one row per route and policy.
+#      The artifact includes originals, successful conversions, tool logs,
+#      record-level results, configuration, and file checksums.
+# ============================================================
+
+name: SBOM Conversion and PURL Preservation
+
+on:
+  workflow_dispatch:
+    inputs:
+      sbom_run_id:
+        description: "Successful SBOM run ID on main (blank selects latest)"
+        required: false
+        type: string
+
+permissions:
+  contents: read # WHY: Read the inspection configuration and evaluator.
+  actions: read # WHY: Download artifacts from the selected SBOM run.
+
+jobs:
+  inspect:
+    name: Inspect SBOM conversion routes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      # ============================================================
+      # === A) ASSEMBLE: Checkout code and set up environment ===
+      # ============================================================
+
+      - name: A1) Checkout inspection configuration
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: A2) Select the source SBOM run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          REQUESTED_RUN: ${{ inputs.sbom_run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p inspection/logs
+          run_id="$REQUESTED_RUN"
+
+          if [[ -z "$run_id" ]]; then
+            run_id=$(gh run list --workflow sbom.yml --branch main \
+              --status success --limit 1 --json databaseId --jq '.[0].databaseId')
+          fi
+
+          if [[ ! "$run_id" =~ ^[0-9]+$ ]]; then
+            echo "::error::A successful sbom.yml run on main is required."
+            exit 1
+          fi
+
+          gh api "repos/$GH_REPO/actions/runs/$run_id" > inspection/source-run.json
+          jq -e '
+            .path == ".github/workflows/sbom.yml" and
+            .head_branch == "main" and .conclusion == "success"
+          ' inspection/source-run.json > /dev/null
+          echo "SBOM_RUN_ID=$run_id" >> "$GITHUB_ENV"
+        # WHY: Both original SBOMs must describe the same producer run.
+
+      - name: A3) Download both original SBOM artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: python3 .github/scripts/sbom_conversion.py download
+        # WHY: The published inputs preserve the exact evidence being inspected.
+
+      # ============================================================
+      # === B) BUILD AND EVALUATE CONVERSION ROUTES ===
+      # ============================================================
+
+      - name: B1) Prepare converters and evaluate configured routes
+        run: python3 .github/scripts/sbom_conversion.py inspect
+        # OBS: A failed route is recorded. The remaining routes still run.
+        # OBS: A detected PURL change is a research result.
+        #      A tool failure or unexpected format version is an execution error.
+
+      # ============================================================
+      # === C) CREATE SUMMARY AND PUBLISH ===
+      # ============================================================
+
+      - name: C1) Publish inspection summary
+        if: always()
+        shell: bash
+        run: |
+          if [[ -s inspection/summary.md ]]; then
+            cat inspection/summary.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "## SBOM conversion inspection" >> "$GITHUB_STEP_SUMMARY"
+            echo "Inspection stopped before the route report was produced. See the failed step." \
+              >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: C2) Upload inspection evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: sbom-conversion-${{ github.run_id }}-${{ github.run_attempt }}
+          path: inspection/
+          if-no-files-found: warn
