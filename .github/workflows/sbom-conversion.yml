@@ -91,7 +91,9 @@ jobs:
         run: python3 .github/scripts/sbom_conversion.py inspect
         # OBS: A failed route is recorded. The remaining routes still run.
         # OBS: A detected PURL change is a research result.
-        #      A tool failure or unexpected format version is an execution error.
+        #      A converter failure or unusable converter output is a recorded route outcome.
+        #      Only an inspection error (configuration, evaluator, or output writing)
+        #      fails this step.
 
       # ============================================================
       # === C) CREATE SUMMARY AND PUBLISH ===

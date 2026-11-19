@@ -35,6 +35,13 @@ OUTCOMES = (
 )
 
 
+class ConverterFailure(Exception):
+    """A converter could not be prepared, could not run, or wrote an unusable SBOM.
+
+    This is a recorded outcome for the route, not an inspection error.
+    """
+
+
 def config(path):
     with path.open("rb") as stream:
         return tomllib.load(stream)
@@ -243,6 +250,13 @@ def evaluate(source, target, policy):
     return details
 
 
+def unevaluated(label, policies, status):
+    return [
+        f"| {label} | {policy['id']} | — | — | — | — | — | {status} |"
+        for policy in policies["policy"]
+    ]
+
+
 def inspect(routes, policies):
     sources = {}
     for fmt, spec in routes["source"].items():
@@ -265,7 +279,8 @@ def inspect(routes, policies):
         "|---|---|---:|---:|---:|---:|---:|---|",
     ]
     evidence = []
-    errors = []
+    failures = []  # converter outcomes: reported, but do not affect the exit code
+    inspection_errors = []  # config, evaluator, or output-writing faults
     completed = 0
     with tempfile.TemporaryDirectory() as temp:
         work = Path(temp)
@@ -284,21 +299,25 @@ def inspect(routes, policies):
             output = OUT / f"{stem}.json"
             pending = work / f"{stem}.json"
             try:
-                if tool not in commands:
-                    raise ValueError(f"Tool setup failed; see logs/prepare-{tool}.log")
                 args = [
                     arg.format(input=original(src), output=pending)
                     for arg in route["args"]
                 ]
-                with (LOGS / f"{stem}.log").open("wb") as log:
-                    if route.get("stdout"):
-                        with pending.open("wb") as stream:
-                            subprocess.run(commands[tool] + args, stdout=stream,
+                expected = routes["source"][dst]["version"]
+                try:
+                    if tool not in commands:
+                        raise ValueError(f"Tool setup failed; see logs/prepare-{tool}.log")
+                    with (LOGS / f"{stem}.log").open("wb") as log:
+                        if route.get("stdout"):
+                            with pending.open("wb") as stream:
+                                subprocess.run(commands[tool] + args, stdout=stream,
+                                               stderr=log, check=True, timeout=180)
+                        else:
+                            subprocess.run(commands[tool] + args, stdout=log,
                                            stderr=log, check=True, timeout=180)
-                    else:
-                        subprocess.run(commands[tool] + args, stdout=log,
-                                       stderr=log, check=True, timeout=180)
-                doc = read_document(pending, dst, routes["source"][dst]["version"])
+                    doc = read_document(pending, dst, expected)
+                except (OSError, ValueError, subprocess.SubprocessError) as exc:
+                    raise ConverterFailure(str(exc)) from exc
                 target = records(doc, dst, policies.get("ecosystem_rule", []))
                 rows = []
                 for policy in policies["policy"]:
@@ -314,12 +333,12 @@ def inspect(routes, policies):
                     report.append(line)
                     evidence.append(detail)
                 completed += 1
-            except (OSError, ValueError, KeyError, subprocess.SubprocessError) as exc:
-                errors.append(f"{label}: {exc}")
-                for policy in policies["policy"]:
-                    report.append(
-                        f"| {label} | {policy['id']} | — | — | — | — | — | Failed |"
-                    )
+            except ConverterFailure as exc:
+                failures.append(f"{label}: {exc}")
+                report.extend(unevaluated(label, policies, "Converter failed"))
+            except (OSError, ValueError, KeyError, IndexError) as exc:
+                inspection_errors.append(f"{label}: {type(exc).__name__}: {exc}")
+                report.extend(unevaluated(label, policies, "Inspection error"))
 
     report.extend([
         "",
@@ -333,9 +352,12 @@ def inspect(routes, policies):
             "A dash indicates that evaluation could not run."
         ),
     ])
-    if errors:
-        report.extend(["", "### Execution errors", ""])
-        report.extend(f"- {message}" for message in errors)
+    if failures:
+        report.extend(["", "### Converter failures", ""])
+        report.extend(f"- {message}" for message in failures)
+    if inspection_errors:
+        report.extend(["", "### Inspection errors", ""])
+        report.extend(f"- {message}" for message in inspection_errors)
 
     (OUT / "summary.md").write_text("\n".join(report) + "\n", encoding="utf-8")
     (OUT / "records.json").write_text(json.dumps(evidence, indent=2) + "\n")
@@ -345,7 +367,8 @@ def inspect(routes, policies):
         for path in sorted(OUT.glob("sbom.*.json")):
             digest = hashlib.sha256(path.read_bytes()).hexdigest()
             print(f"{digest}  {path.name}", file=manifest)
-    return int(bool(errors))
+    # Converter failures are recorded evidence. Only inspection errors fail the run.
+    return int(bool(inspection_errors))
 
 
 if __name__ == "__main__":

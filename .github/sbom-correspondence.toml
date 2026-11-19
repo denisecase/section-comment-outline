@@ -21,7 +21,18 @@ method = "shared-package-digest"
 algorithms = ["SHA-1", "SHA-256", "SHA-512"]
 
 # ============================================================
-# === POLICY 2: USE ECOSYSTEM, NAME, VERSION ===
+# === POLICY 2: USE NAME AND VERSION (NO ECOSYSTEM EVIDENCE) ===
+# ============================================================
+
+# WHY: Uses only fields every SBOM format records natively, so a converter
+#      is not penalized for dropping producer-specific annotations.
+[[policy]]
+id = "name-version"
+method = "exact-fields"
+fields = ["name", "version"]
+
+# ============================================================
+# === POLICY 3: USE ECOSYSTEM, NAME, VERSION ===
 # ============================================================
 
 [[policy]]
@@ -54,3 +65,11 @@ format = "spdx"
 field = "sourceInfo"
 starts_with = "acquired package info from GitHub Actions workflow file or composite action file:"
 ecosystem = "github-actions"
+
+# WHY: Observed Syft SPDX label for npm lockfile entries. It names the
+#      cataloger's source file, not the ecosystem, so it is a declared heuristic.
+[[ecosystem_rule]]
+format = "spdx"
+field = "sourceInfo"
+starts_with = "acquired package info from installed node module manifest file:"
+ecosystem = "npm"

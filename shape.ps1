@@ -12,8 +12,6 @@
 # Run with:
 # .\shape.ps1
 
-Clear-Host
-
 # WHY: Must run from inside a Git repository.
 $repoRoot = git rev-parse --show-toplevel 2>$null
 
