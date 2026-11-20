@@ -469,6 +469,24 @@ def report(generators, outputs):
     lines += purl_tables(rows, limit)
     lines += missing_section(rows)
 
+    # WHY: A maintainer's interpretation applies to one generation run.
+    #      The source run ID associates the note with the artifacts it describes.
+    note_path = (
+        Path(".github/notes/sbom-generation-comparison") / f"{source_run['id']}.md"
+    )
+    if note_path.is_file():
+        lines.extend(
+            [
+                "",
+                "<details>",
+                "<summary>Maintainer's interpretation of this generation run</summary>",
+                "",
+                note_path.read_text(encoding="utf-8").strip(),
+                "",
+                "</details>",
+            ]
+        )
+
     (OUT / "summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     write_evidence(outputs)
 
