@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """.github/scripts/sbom_conversion.py - Inspect configured SBOM conversion routes and record PURL correspondence.
 
 Used by .github/workflows/sbom-conversion.yml

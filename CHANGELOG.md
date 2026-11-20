@@ -13,11 +13,25 @@ and this project adheres to **[Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
-## [0.2.1] - 2026-11-19
+## [0.2.1] - 2026-11-20
 
 ### Added
 
-- sbom conversion action
+- Data-driven SBOM generation workflow (`sbom-generation.yml`), run on demand.
+  Generators, versions, commands, signature rules and artifact names are
+  declared in `.github/sbom-generators.toml`. Downloaded generators are
+  verified by SHA-256 digest and release signature before they run, and each
+  output must report its declared document version.
+- Data-driven SBOM conversion workflow (`sbom-conversion.yml`), run on demand
+  against a successful `sbom-generation.yml` run. Conversion routes and
+  correspondence policies are declared in `.github/sbom-routes.toml` and
+  `.github/sbom-correspondence.toml`. Per-record PURL preservation is reported
+  by route and policy, with a baseline comparison of the original SBOMs.
+  Converter failures are recorded as route outcomes, and only inspection
+  errors fail the run.
+- Generator records for the standard SBOM workflow (`sbom.yml`):
+  `sbom.spdx.generator.json` and `sbom.cdx.generator.json` hold the tool and
+  version each SBOM reports and the SHA-256 digest of that SBOM.
 
 ---
 

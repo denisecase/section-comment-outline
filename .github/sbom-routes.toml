@@ -3,7 +3,8 @@
 # ============================================================
 # REQ: Each route converts one original SBOM into one target SBOM.
 # WHY: Every converter in a given direction receives the same input bytes.
-# OBS: The source artifact names match .github/workflows/sbom.yml.
+# OBS: The source artifact names match the
+#      Syft outputs declared in .github/sbom-generators.toml.
 # OBS: Route arguments are passed directly to the executable.
 #      {input} and {output} represent individual filesystem paths.
 # ============================================================
@@ -13,11 +14,11 @@
 # ============================================================
 
 [source.cdx]
-artifact = "sbom.cdx.json"
+artifact = "syft.cdx"
 version = "1.7"
 
 [source.spdx]
-artifact = "sbom.spdx.json"
+artifact = "sbom.spdx"
 version = "SPDX-2.3"
 
 # ============================================================

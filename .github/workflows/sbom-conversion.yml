@@ -1,10 +1,10 @@
 # ============================================================
 # .github/workflows/sbom-conversion.yml (CUSTOM, opt-in inspection)
 # ============================================================
-# Updated: 2026-11-19
+# Updated: 2026-11-20
 #
 # REQ: Inspect CycloneDX and SPDX artifacts produced by one successful
-#      execution of .github/workflows/sbom.yml on main.
+#      execution of .github/workflows/sbom-generation.yml on main.
 # REQ: Execute the routes declared in .github/sbom-routes.toml.
 # REQ: Evaluate each successful route under every correspondence policy
 #      declared in .github/sbom-correspondence.toml.
@@ -61,18 +61,18 @@ jobs:
           run_id="$REQUESTED_RUN"
 
           if [[ -z "$run_id" ]]; then
-            run_id=$(gh run list --workflow sbom.yml --branch main \
+            run_id=$(gh run list --workflow sbom-generation.yml --branch main \
               --status success --limit 1 --json databaseId --jq '.[0].databaseId')
           fi
 
           if [[ ! "$run_id" =~ ^[0-9]+$ ]]; then
-            echo "::error::A successful sbom.yml run on main is required."
+            echo "::error::A successful sbom-generation.yml run on main is required."
             exit 1
           fi
 
           gh api "repos/$GH_REPO/actions/runs/$run_id" > inspection/source-run.json
           jq -e '
-            .path == ".github/workflows/sbom.yml" and
+            .path == ".github/workflows/sbom-generation.yml" and
             .head_branch == "main" and .conclusion == "success"
           ' inspection/source-run.json > /dev/null
           echo "SBOM_RUN_ID=$run_id" >> "$GITHUB_ENV"

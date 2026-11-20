@@ -1,0 +1,125 @@
+# ============================================================
+# .github/workflows/sbom-generation.yml (CUSTOM, opt-in generation)
+# ============================================================
+# Updated: 2026-11-20
+#
+# REQ: Generate machine-readable Software Bills of Materials (SBOMs)
+# for the repository on manual request, with every generator declared in
+# .github/sbom-generators.toml.
+# REQ: Take every generator, package, version, command, and artifact
+# name from .github/sbom-generators.toml.
+#
+# WHY: An SBOM is an inventory of software components and dependencies,
+# analogous to an ingredients list for software.
+# It supports dependency visibility, vulnerability analysis,
+# provenance, and reproducibility.
+#
+# Generate both common machine-readable formats with each declared generator:
+# - SPDX JSON: aligns with GitHub's native dependency-graph/SBOM ecosystem.
+# - CycloneDX JSON: widely used by vulnerability-management and
+#   software-supply-chain security tooling.
+#
+# The generated SBOMs are generated artifacts rather than committed files.
+# This avoids repository churn while preserving an SBOM for each
+# workflow execution.
+#
+# This workflow inventories the repository.
+# It does not determine whether a
+# dependency is vulnerable or exploitable;
+# vulnerability and VEX (Vulnerability Exploitability Exchange)
+# interpretation are separate analyses.
+#
+# OBS: .github/workflows/sbom.yml remains the standard SBOM workflow.
+# It runs on every push to main and submits to GitHub's Dependency Graph.
+# This workflow does neither, so the two do not interfere.
+# OBS: The uses references below cannot be read from the TOML file,
+# so the action versions stay pinned here.
+
+# Name shown in the repository Actions tab.
+name: SBOM Generation
+
+on:
+  workflow_dispatch: # WHY: Opt-in. Run from the Actions tab when needed.
+
+permissions:
+  contents: read # WHY: Repository files are read.
+
+concurrency:
+  group: sbom-generation-${{ github.ref }}
+  cancel-in-progress: true
+  # WHY: Cancel a running action when new code is pushed to the same branch.
+
+jobs:
+  plan:
+    name: Plan SBOM generators
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+
+    steps:
+      - name: A1) Checkout repository code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: A2) Read the declared generators
+        id: plan
+        run: python3 .github/scripts/sbom_generate.py plan
+        # WHY: One matrix entry per declared output. An invalid TOML file
+        # fails here, before any generator runs.
+
+  generate:
+    name: ${{ matrix.artifact }}
+    needs: plan
+    runs-on: ubuntu-latest
+    continue-on-error: ${{ !matrix.required }}
+    # WHY: A generator declared required = false is recorded when it fails
+    # but does not fail the run that the inspection workflow selects.
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+
+    steps:
+      # ============================================================
+      # === A) ASSEMBLE: Checkout repository contents
+      # ============================================================
+
+      - name: A1) Checkout repository code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+        # WHY: The generator must inspect the checked-out repository and its
+        # dependency metadata to construct the SBOM.
+
+      - name: A2) Set up Node.js
+        if: matrix.node != ''
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: ${{ matrix.node }}
+        # WHY: Only generators that declare a node version need it.
+
+      # ============================================================
+      # === B) BUILD: Generate one machine-readable SBOM artifact ===
+      # ============================================================
+      - name: B1) Generate ${{ matrix.artifact }}
+        env:
+          ARTIFACT: ${{ matrix.artifact }}
+        run: python3 .github/scripts/sbom_generate.py generate "$ARTIFACT"
+        # WHY: The script installs the declared package at the declared
+        # version, verifies its checksum, runs the declared command, and
+        # checks the document version of the result.
+        # The artifact name is passed through the environment rather than
+        # interpolated into the shell command.
+
+      # ============================================================
+      # === C) PUBLISH: Upload the artifact named in the TOML file ===
+      # ============================================================
+      - name: C1) Upload ${{ matrix.artifact }}
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: ${{ matrix.artifact }}
+          path: generated/${{ matrix.artifact }}.json
+          if-no-files-found: warn
+        # WHY: A file written before a failed version check is still uploaded
+        # so it can be inspected. The failed step still fails the job.

@@ -1,0 +1,164 @@
+# ============================================================
+# .github/sbom-generators.toml
+# ============================================================
+# REQ: Each generator produces the original SBOMs that the routes in
+#      .github/sbom-routes.toml convert and the policies in
+#      .github/sbom-correspondence.toml evaluate.
+# REQ: .github/workflows/sbom-generation.yml and
+#      .github/scripts/sbom_generate.py
+#      read this file.
+#      Edit this file to add a generator or change a version.
+# WHY: The generator is a variable.
+#      Declaring it here records which tool, which revision,
+#      and which command produced each original.
+# OBS: Artifact names are {generator}.{format}.
+#      The file inside each artifact is {generator}.{format}.json.
+# OBS: Arguments are passed to the executable.
+#      {path} is the repository directory to inventory.
+#      {output} is the file the generator will write.
+#      stdout = true means the generator writes to standard output instead.
+# OBS: "version" is the document version the output must report.
+#      A mismatch fails that output with the version actually received.
+# OBS: required = false means a failure of that generator is recorded
+#      but does not fail the SBOM run that the inspection workflow selects.
+# OBS: A generator with a verify table has its release signature checked
+#      before it is executed. Both the sha256 pin and the signature must pass.
+# ============================================================
+
+# ============================================================
+# === VERIFIER: checks release signatures ===
+# ============================================================
+
+# archive = false means the release asset is the executable itself.
+
+[verifier.cosign]
+package = "sigstore/cosign"
+revision = "v3.1.4"
+asset = "cosign-linux-amd64"
+archive = false
+sha256 = "424e2c97d0b45fd7a6b608a87f090f35633f4c23ece5f092d48bba11aaf4bbfa"
+# OBS: Version 3 reads sigstore bundles directly.
+# Version 2 would need --new-bundle-format.
+
+# ============================================================
+# === GENERATORS (3): package, version, and how to install ===
+# ============================================================
+
+# ============================================================
+# === GENERATOR 1: Syft ===
+# ============================================================
+
+# install = "github-release":
+# download one release asset, verify sha256, extract the binary.
+# {version} in "asset" is the revision without its leading "v".
+
+[generator.syft]
+package = "anchore/syft"
+install = "github-release"
+revision = "v1.57.2"
+asset = "syft_{version}_linux_amd64.tar.gz"
+binary = "syft"
+sha256 = "ad92bd3ec1b94a3df01d4d0aec199afa9c42b72e86da436ff5f837914d32706b"
+required = true
+# OBS: .github/workflows/sbom.yml reaches Syft through step-security/sbom-action,
+#      which bundles its own Syft version unless its syft-version input is set.
+#       This entry pins Syft directly instead.
+
+# OBS: Syft signs its checksums file rather than each asset.
+#      The check is the signature on that file plus the
+#      asset's digest listed in it.
+#      The signer identity names the release workflow on the main branch,
+#      not on a release tag, so it is a weaker statement than Trivy's.
+[generator.syft.verify]
+verifier = "cosign"
+signed = "syft_{version}_checksums.txt"
+bundle = "syft_{version}_checksums.txt.sigstore.json"
+certificate_identity = "https://github.com/anchore/syft/.github/workflows/release.yaml@refs/heads/main"
+certificate_oidc_issuer = "https://token.actions.githubusercontent.com"
+
+# ============================================================
+# === GENERATOR 2: Trivy ===
+# ============================================================
+
+[generator.trivy]
+package = "aquasecurity/trivy"
+install = "github-release"
+revision = "v0.76.2"
+asset = "trivy_{version}_Linux-64bit.tar.gz"
+binary = "trivy"
+sha256 = "bc0fc726e017b8927a62b2d3531d7a84ee01769daf5c99ed866dced54089fdbf"
+required = true
+
+# OBS: Since v0.68.1, every Trivy release asset has its own .sigstore.json bundle.
+[generator.trivy.verify]
+verifier = "cosign"
+signed = "{asset}"
+bundle = "{asset}.sigstore.json"
+certificate_identity = "https://github.com/aquasecurity/trivy/.github/workflows/reusable-release.yaml@refs/tags/{revision}"
+certificate_oidc_issuer = "https://token.actions.githubusercontent.com"
+
+# ============================================================
+# === GENERATOR 3: Node ===
+# ============================================================
+
+# install = "node-builtin": use the npm that ships with the declared Node version.
+
+[generator.npm]
+package = "npm"
+install = "node-builtin"
+node = "26"
+prepare = [["npm", "ci", "--ignore-scripts"]]
+required = false
+# OBS: Inventories npm dependencies only.
+#      `npm sbom` needs the dependencies installed, so it
+#      runs `npm ci` first.
+
+# ============================================================
+# === OUTPUTS: ONE PER GENERATOR AND FORMAT (3 x 2 = 6) ===
+# ============================================================
+
+[[output]]
+generator = "npm"
+format = "cdx"
+version = "1.5" # unverified
+artifact = "npm.cdx"
+args = ["sbom", "--sbom-format", "cyclonedx"]
+stdout = true
+
+[[output]]
+generator = "npm"
+format = "spdx"
+version = "SPDX-2.3" # unverified
+artifact = "npm.spdx"
+args = ["sbom", "--sbom-format", "spdx"]
+stdout = true
+
+[[output]]
+generator = "syft"
+format = "cdx"
+version = "1.7"
+artifact = "syft.cdx"
+args = ["scan", "dir:{path}", "-o", "cyclonedx-json={output}"]
+
+[[output]]
+generator = "syft"
+format = "spdx"
+version = "SPDX-2.3"
+artifact = "syft.spdx"
+args = ["scan", "dir:{path}", "-o", "spdx-json={output}"]
+
+[[output]]
+generator = "trivy"
+format = "cdx"
+version = "1.7"
+artifact = "trivy.cdx"
+args = ["fs", "--include-dev-deps", "--format", "cyclonedx", "--output", "{output}", "{path}"]
+# OBS: Without --include-dev-deps, Trivy lists no packages for this repository,
+#      because every npm dependency here is a development dependency.
+
+[[output]]
+generator = "trivy"
+format = "spdx"
+version = "SPDX-2.3"
+artifact = "trivy.spdx"
+args = ["fs", "--include-dev-deps", "--format", "spdx-json", "--output", "{output}", "{path}"]
