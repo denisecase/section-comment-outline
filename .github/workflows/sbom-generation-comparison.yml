@@ -1,0 +1,118 @@
+# ============================================================
+# .github/workflows/sbom-generation-comparison.yml (CUSTOM, opt-in report)
+# ============================================================
+# Updated: 2026-11-20
+#
+# REQ: Report the SBOMs produced by one successful execution of
+#      .github/workflows/sbom-generation.yml on main.
+# REQ: Read the declared generators and outputs from
+#      .github/sbom-generators.toml.
+#
+# WHY: A reader of the generation run sees only artifact names.
+#      This report states, for each SBOM, which generator wrote it,
+#      which generator version, and which output format, and compares
+#      the package URLs that the generators list.
+#
+# OBS: The report runs after the fact on a finished generation run.
+#      An output that is missing is reported as not generated.
+#      Only an inspection error (configuration or report writing)
+#      fails this workflow.
+# ============================================================
+
+name: SBOM Generation Comparison
+
+on:
+  workflow_dispatch:
+    inputs:
+      generation_run_id:
+        description: "Successful SBOM generation run ID on main (blank selects latest)"
+        required: false
+        type: string
+
+permissions:
+  contents: read # WHY: Read the declared generators and the report script.
+  actions: read # WHY: Download artifacts from the selected generation run.
+
+jobs:
+  report:
+    name: Report SBOM generation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      # ============================================================
+      # === A) ASSEMBLE: Checkout code and download the SBOMs ===
+      # ============================================================
+
+      - name: A1) Checkout repository code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: A2) Select the generation run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          REQUESTED_RUN: ${{ inputs.generation_run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p comparison/logs
+          run_id="$REQUESTED_RUN"
+
+          if [[ -z "$run_id" ]]; then
+            run_id=$(gh run list --workflow sbom-generation.yml --branch main \
+              --status success --limit 1 --json databaseId --jq '.[0].databaseId')
+          fi
+
+          if [[ ! "$run_id" =~ ^[0-9]+$ ]]; then
+            echo "::error::A successful sbom-generation.yml run on main is required."
+            exit 1
+          fi
+
+          gh api "repos/$GH_REPO/actions/runs/$run_id" > comparison/source-run.json
+          jq -e '
+            .path == ".github/workflows/sbom-generation.yml" and
+            .head_branch == "main" and .conclusion == "success"
+          ' comparison/source-run.json > /dev/null
+          echo "GENERATION_RUN_ID=$run_id" >> "$GITHUB_ENV"
+        # WHY: Every SBOM in the report must come from one generation run.
+
+      - name: A3) Download the generated SBOMs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: python3 .github/scripts/sbom_generation_comparison.py download
+        # WHY: The downloaded files preserve the exact evidence being reported.
+        # OBS: A missing artifact is recorded in logs/ and reported as not generated.
+
+      # ============================================================
+      # === B) BUILD THE REPORT ===
+      # ============================================================
+
+      - name: B1) Write the report
+        run: python3 .github/scripts/sbom_generation_comparison.py report
+
+      # ============================================================
+      # === C) CREATE SUMMARY AND PUBLISH ===
+      # ============================================================
+
+      - name: C1) Publish report summary
+        if: always()
+        shell: bash
+        run: |
+          if [[ -s comparison/summary.md ]]; then
+            cat comparison/summary.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "## SBOM generation report" >> "$GITHUB_STEP_SUMMARY"
+            echo "The report stopped before it was written. See the failed step." \
+              >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: C2) Upload report evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: sbom-generation-comparison-${{ github.run_id }}-${{ github.run_attempt }}
+          path: comparison/
+          if-no-files-found: warn
