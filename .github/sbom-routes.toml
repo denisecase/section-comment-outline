@@ -18,7 +18,7 @@ artifact = "syft.cdx"
 version = "1.7"
 
 [source.spdx]
-artifact = "sbom.spdx"
+artifact = "syft.spdx"
 version = "SPDX-2.3"
 
 # ============================================================
