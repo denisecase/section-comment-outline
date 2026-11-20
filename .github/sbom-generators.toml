@@ -70,6 +70,13 @@ asset = "syft_{version}_linux_amd64.tar.gz"
 binary = "syft"
 sha256 = "ad92bd3ec1b94a3df01d4d0aec199afa9c42b72e86da436ff5f837914d32706b"
 required = true
+# WHY: Every generator includes development dependencies,
+#      so the inventories describe the same scope and can be compared.
+#      Syft leaves them out unless told otherwise.
+#      Each name below is set as an environment variable for Syft's commands.
+[generator.syft.env]
+SYFT_JAVASCRIPT_INCLUDE_DEV_DEPENDENCIES = "true"
+
 # OBS: .github/workflows/sbom.yml reaches Syft through step-security/sbom-action,
 #      which bundles its own Syft version unless its syft-version input is set.
 #       This entry pins Syft directly instead.
@@ -99,6 +106,10 @@ binary = "trivy"
 sha256 = "bc0fc726e017b8927a62b2d3531d7a84ee01769daf5c99ed866dced54089fdbf"
 required = true
 
+# OBS: Trivy describes the scanned directory and the lockfile as records without a PURL.
+#      It does not list the repository's own package,
+#      which npm and Syft list with a PURL.
+
 # OBS: Since v0.68.1, every Trivy release asset has its own .sigstore.json bundle.
 [generator.trivy.verify]
 verifier = "cosign"
@@ -119,9 +130,8 @@ install = "node-builtin"
 node = "26"
 prepare = [["npm", "ci", "--ignore-scripts"]]
 required = false
-# OBS: Inventories npm dependencies only.
-#      `npm sbom` needs the dependencies installed, so it
-#      runs `npm ci` first.
+# OBS: Inventories npm dependencies only and lists the repository's own package as the root.
+#      `npm sbom` needs the dependencies installed, so it runs `npm ci` first.
 
 # ============================================================
 # === OUTPUTS: ONE PER GENERATOR AND FORMAT (3 x 2 = 6) ===
@@ -130,7 +140,7 @@ required = false
 [[output]]
 generator = "npm"
 format = "cdx"
-version = "1.5" # unverified
+version = "1.5"
 artifact = "npm.cdx"
 args = ["sbom", "--sbom-format", "cyclonedx"]
 stdout = true
@@ -138,7 +148,7 @@ stdout = true
 [[output]]
 generator = "npm"
 format = "spdx"
-version = "SPDX-2.3" # unverified
+version = "SPDX-2.3"
 artifact = "npm.spdx"
 args = ["sbom", "--sbom-format", "spdx"]
 stdout = true

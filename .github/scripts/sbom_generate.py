@@ -28,7 +28,13 @@ INSTALL_KEYS = {
     "github-release": ("package", "revision", "asset"),
     "node-builtin": ("node",),
 }
-VERIFY_KEYS = ("verifier", "signed", "bundle", "certificate_identity", "certificate_oidc_issuer")
+VERIFY_KEYS = (
+    "verifier",
+    "signed",
+    "bundle",
+    "certificate_identity",
+    "certificate_oidc_issuer",
+)
 
 
 def config(path=CONFIG):
@@ -41,7 +47,9 @@ def config(path=CONFIG):
         raise ValueError(f"{path}: declare at least one generator and one output")
 
     for name, spec in verifiers.items():
-        missing = [k for k in ("package", "revision", "asset", "sha256") if k not in spec]
+        missing = [
+            k for k in ("package", "revision", "asset", "sha256") if k not in spec
+        ]
         if spec.get("archive", True) and "binary" not in spec:
             missing.append("binary")
         if missing:
@@ -50,18 +58,29 @@ def config(path=CONFIG):
     for name, gen in generators.items():
         kind = gen.get("install")
         if kind not in INSTALL_KEYS:
-            raise ValueError(f"generator.{name}: install must be one of {sorted(INSTALL_KEYS)}")
+            raise ValueError(
+                f"generator.{name}: install must be one of {sorted(INSTALL_KEYS)}"
+            )
         missing = [key for key in INSTALL_KEYS[kind] if key not in gen]
         if kind == "github-release" and "binary" not in gen:
             missing.append("binary")
         if missing:
             raise ValueError(f"generator.{name}: missing {', '.join(missing)}")
+        env = gen.get("env", {})
+        if not isinstance(env, dict) or not all(
+            isinstance(v, str) for v in env.values()
+        ):
+            raise ValueError(f"generator.{name}: env must be a table of text values")
         if "verify" in gen:
             if kind != "github-release":
-                raise ValueError(f"generator.{name}: verify applies only to github-release")
+                raise ValueError(
+                    f"generator.{name}: verify applies only to github-release"
+                )
             missing = [key for key in VERIFY_KEYS if key not in gen["verify"]]
             if missing:
-                raise ValueError(f"generator.{name}.verify: missing {', '.join(missing)}")
+                raise ValueError(
+                    f"generator.{name}.verify: missing {', '.join(missing)}"
+                )
             if gen["verify"]["verifier"] not in verifiers:
                 raise ValueError(
                     f"generator.{name}.verify: unknown verifier {gen['verify']['verifier']!r}"
@@ -71,11 +90,17 @@ def config(path=CONFIG):
     for out in outputs:
         label = out.get("artifact", "?")
         if out.get("generator") not in generators:
-            raise ValueError(f"output {label}: unknown generator {out.get('generator')!r}")
+            raise ValueError(
+                f"output {label}: unknown generator {out.get('generator')!r}"
+            )
         if out.get("format") not in VERSION_FIELD:
-            raise ValueError(f"output {label}: format must be one of {sorted(VERSION_FIELD)}")
+            raise ValueError(
+                f"output {label}: format must be one of {sorted(VERSION_FIELD)}"
+            )
         if label != f"{out['generator']}.{out['format']}":
-            raise ValueError(f"output {label}: artifact must be {out['generator']}.{out['format']}")
+            raise ValueError(
+                f"output {label}: artifact must be {out['generator']}.{out['format']}"
+            )
         if label in seen:
             raise ValueError(f"output {label}: declared twice")
         seen.add(label)
@@ -106,7 +131,9 @@ def plan():
 def fill(text, spec, asset=""):
     """Substitute {version}, {revision}, and {asset} in a declared string."""
     return text.format(
-        version=spec["revision"].removeprefix("v"), revision=spec["revision"], asset=asset
+        version=spec["revision"].removeprefix("v"),
+        revision=spec["revision"],
+        asset=asset,
     )
 
 
@@ -125,7 +152,9 @@ def fetch(label, spec, asset, folder):
     if "sha256" not in spec:
         print(f"::warning::{label} declares no sha256. Computed {digest}")
     elif digest != spec["sha256"]:
-        raise ValueError(f"{asset}: expected sha256 {spec['sha256']}, received {digest}")
+        raise ValueError(
+            f"{asset}: expected sha256 {spec['sha256']}, received {digest}"
+        )
     return path, digest
 
 
@@ -137,8 +166,11 @@ def executable(spec, archive, folder):
     binary = folder / spec["binary"]
     with tarfile.open(archive) as bundle:
         member = next(
-            (m for m in bundle.getmembers()
-             if m.isfile() and Path(m.name).name == spec["binary"]),
+            (
+                m
+                for m in bundle.getmembers()
+                if m.isfile() and Path(m.name).name == spec["binary"]
+            ),
             None,
         )
         if member is None:
@@ -165,23 +197,37 @@ def verify_signature(name, gen, verifiers, asset, digest, folder):
     """Check the release signature of a downloaded asset before it is executed."""
     rule = gen["verify"]
     spec = verifiers[rule["verifier"]]
-    archive, _ = fetch(f"verifier.{rule['verifier']}", spec, fill(spec["asset"], spec), folder)
+    archive, _ = fetch(
+        f"verifier.{rule['verifier']}", spec, fill(spec["asset"], spec), folder
+    )
     cosign = executable(spec, archive, folder)
 
     signed_name = fill(rule["signed"], gen, asset)
-    signed = folder / asset if signed_name == asset else download(gen, signed_name, folder)
+    signed = (
+        folder / asset if signed_name == asset else download(gen, signed_name, folder)
+    )
     bundle = download(gen, fill(rule["bundle"], gen, asset), folder)
 
     subprocess.run(
-        [str(cosign), "verify-blob", str(signed), "--bundle", str(bundle),
-         "--certificate-identity", fill(rule["certificate_identity"], gen, asset),
-         "--certificate-oidc-issuer", rule["certificate_oidc_issuer"]],
+        [
+            str(cosign),
+            "verify-blob",
+            str(signed),
+            "--bundle",
+            str(bundle),
+            "--certificate-identity",
+            fill(rule["certificate_identity"], gen, asset),
+            "--certificate-oidc-issuer",
+            rule["certificate_oidc_issuer"],
+        ],
         check=True,
     )
     if signed_name != asset:
         listed = listed_digest(signed.read_text(encoding="utf-8"), asset)
         if listed != digest:
-            raise ValueError(f"{signed_name}: lists sha256 {listed!r} for {asset}, received {digest}")
+            raise ValueError(
+                f"{signed_name}: lists sha256 {listed!r} for {asset}, received {digest}"
+            )
     print(f"generator.{name}: signature verified for {signed_name}")
 
 
@@ -214,19 +260,24 @@ def generate(artifact):
         command = install(out["generator"], gen, verifiers, Path(temp))
         OUT.mkdir(exist_ok=True)
         target = (OUT / f"{artifact}.json").resolve()
+        # WHY: Settings that a generator reads from its environment are declared
+        #      in the TOML file, so every run of that generator is configured alike.
+        env = {**os.environ, **gen.get("env", {})}
         for step in gen.get("prepare", []):
-            subprocess.run(step, check=True)
+            subprocess.run(step, check=True, env=env)
         args = [arg.format(path=".", output=str(target)) for arg in out["args"]]
         if out.get("stdout", False):
             with target.open("wb") as handle:
-                subprocess.run(command + args, stdout=handle, check=True)
+                subprocess.run(command + args, stdout=handle, check=True, env=env)
         else:
-            subprocess.run(command + args, check=True)
+            subprocess.run(command + args, check=True, env=env)
 
     document = json.loads(target.read_text(encoding="utf-8"))
     received = document.get(VERSION_FIELD[out["format"]])
     if received != out["version"]:
-        raise ValueError(f"{artifact}: expected {out['version']}, received {received!r}")
+        raise ValueError(
+            f"{artifact}: expected {out['version']}, received {received!r}"
+        )
     print(f"{artifact}: {received}, {target.stat().st_size} bytes")
 
 

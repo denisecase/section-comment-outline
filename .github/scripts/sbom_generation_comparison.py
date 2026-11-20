@@ -140,7 +140,7 @@ def package_records(document, fmt):
             pending.extend(component.get("components", []))
             if component.get("type") != "file":
                 items.append(component)
-        purls = lambda item: [item["purl"]] if item.get("purl") else []  
+        purls = lambda item: [item["purl"]] if item.get("purl") else []
     else:
         items = document.get("packages", [])
         purls = lambda item: [
@@ -326,6 +326,15 @@ def overlap_table(rows):
                 "This compares exact PURL text only. It does not show that two records "
                 "describe the same package, and a difference can come from what each "
                 "generator was configured to scan as well as from the generator itself."
+            ),
+            "",
+            (
+                "A generator may list the repository's own package as a record with a PURL, "
+                "or describe the scanned directory and give it no PURL. "
+                "That may account for one PURL that only some generators list."
+                "For example, "
+                "Trivy may describe the scanned directory and lockfile as records without a PURL."
+                "It may not list the repository's own package, which npm and Syft list with a PURL."
             ),
         ]
     )
