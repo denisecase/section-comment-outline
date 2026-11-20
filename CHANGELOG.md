@@ -22,6 +22,12 @@ and this project adheres to **[Semantic Versioning](https://semver.org/spec/v2.0
   declared in `.github/sbom-generators.toml`. Downloaded generators are
   verified by SHA-256 digest and release signature before they run, and each
   output must report its declared document version.
+- SBOM generation comparison workflow (`sbom-generation-comparison.yml`), run
+  on demand against a successful `sbom-generation.yml` run. The report names
+  each generator, its declared version, the version its SBOM reports, the
+  output format, and the package and PURL counts, and compares the PURLs that
+  the generators list. It is shown in the run summary and kept as a
+  downloadable artifact.
 - Data-driven SBOM conversion workflow (`sbom-conversion.yml`), run on demand
   against a successful `sbom-generation.yml` run. Conversion routes and
   correspondence policies are declared in `.github/sbom-routes.toml` and

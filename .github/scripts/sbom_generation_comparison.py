@@ -10,6 +10,10 @@ Commands:
              An output that is missing is reported, not treated as an error.
   report     Write comparison/summary.md, the evidence manifest, and the checksums.
 
+The report reads one setting from .github/sbom-generators.toml:
+  [report] purl_detail_max = N
+  A group of 1 to N package URLs (PURLs) is listed in full with its records.
+
 Runs locally with Python 3.11 or later.
 """
 
@@ -21,13 +25,33 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import tomllib
 from pathlib import Path
+from typing import NamedTuple
 
 import sbom_generate
 
 OUT = Path("comparison").resolve()
 LOGS = OUT / "logs"
+
 FORMAT_NAME = {"cdx": "CycloneDX", "spdx": "SPDX"}
+RECORD_KIND = {"cdx": "CycloneDX component", "spdx": "SPDX package"}
+VERSION_KEY = {"cdx": "version", "spdx": "versionInfo"}
+ID_KEY = {"cdx": "bom-ref", "spdx": "SPDXID"}
+ID_LIMIT = 3  # Record identifiers shown per artifact before the rest are only counted.
+
+
+class Record(NamedTuple):
+    """What one component (CycloneDX) or package (SPDX) says about itself."""
+
+    name: str
+    version: str
+    identifier: str
+
+
+# ============================================================
+# === A) DOWNLOAD: get each declared output from the generation run ===
+# ============================================================
 
 
 def download(outputs):
@@ -62,6 +86,22 @@ def download(outputs):
                 )
 
 
+# ============================================================
+# === B) READ: turn each SBOM file into one row of facts ===
+# ============================================================
+
+
+def report_setting(name):
+    """Return a value from the [report] table of the generators file."""
+    with sbom_generate.CONFIG.open("rb") as handle:
+        value = tomllib.load(handle).get("report", {}).get(name)
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise ValueError(
+            f"{sbom_generate.CONFIG}: [report] {name} must be a whole number, 0 or more"
+        )
+    return value
+
+
 def reported_tools(document, fmt):
     """Return the tool names and versions that the SBOM says produced it."""
     if fmt == "cdx":
@@ -79,29 +119,41 @@ def reported_tools(document, fmt):
     return found
 
 
+def make_record(item, fmt):
+    return Record(
+        name=str(item.get("name") or "unnamed"),
+        version=str(item.get(VERSION_KEY[fmt]) or ""),
+        identifier=str(item.get(ID_KEY[fmt]) or ""),
+    )
+
+
 def package_records(document, fmt):
-    """Return (package record count, sorted distinct PURLs). Files are not packages."""
+    """Return (package record count, records by PURL). Files are not packages."""
     if fmt == "cdx":
         pending = list(document.get("components", []))
         root = document.get("metadata", {}).get("component")
         if root:
             pending.append(root)
-        records = []
+        items = []
         while pending:
             component = pending.pop()
             pending.extend(component.get("components", []))
             if component.get("type") != "file":
-                records.append(component)
-        purls = [c["purl"] for c in records if c.get("purl")]
+                items.append(component)
+        purls = lambda item: [item["purl"]] if item.get("purl") else []  
     else:
-        records = document.get("packages", [])
-        purls = [
+        items = document.get("packages", [])
+        purls = lambda item: [
             ref["referenceLocator"]
-            for p in records
-            for ref in p.get("externalRefs", [])
+            for ref in item.get("externalRefs", [])
             if ref.get("referenceType") == "purl"
         ]
-    return len(records), purls
+
+    by_purl = {}
+    for item in items:
+        for purl in purls(item):
+            by_purl.setdefault(purl, []).append(make_record(item, fmt))
+    return len(items), by_purl
 
 
 def declared_version(gen):
@@ -111,7 +163,11 @@ def declared_version(gen):
 
 
 def inspect_output(out, gen):
-    """Describe one declared output from its downloaded file."""
+    """Describe one declared output from its downloaded file.
+
+    row["found"] maps each PURL to the records that carry it.
+    It is None when the file is missing or unreadable.
+    """
     fmt = out["format"]
     shown = out["version"].removeprefix("SPDX-")
     row = {
@@ -123,7 +179,7 @@ def inspect_output(out, gen):
         "output_format": f"{FORMAT_NAME[fmt]} {shown}",
         "packages": "—",
         "with_purl": "—",
-        "purls": None,
+        "found": None,
     }
     optional = "" if gen.get("required", True) else " (optional generator)"
     path = OUT / f"{out['artifact']}.json"
@@ -134,14 +190,16 @@ def inspect_output(out, gen):
         document = json.loads(path.read_text(encoding="utf-8"))
         version = document.get(sbom_generate.VERSION_FIELD[fmt])
         tools = reported_tools(document, fmt)
-        count, purls = package_records(document, fmt)
+        count, found = package_records(document, fmt)
     except (ValueError, AttributeError, TypeError):
         row["status"] = "Unreadable file" + optional
         return row
 
     row["output_format"] = f"{FORMAT_NAME[fmt]} {str(version).removeprefix('SPDX-')}"
     row["reported"] = ", ".join(tools) or "not reported"
-    row["packages"], row["with_purl"], row["purls"] = count, len(purls), set(purls)
+    row["packages"] = count
+    row["with_purl"] = sum(len(records) for records in found.values())
+    row["found"] = found
     if version != out["version"]:
         row["status"] = f"Format version differs from the declared {shown}" + optional
     elif gen["install"] == "github-release" and not any(
@@ -153,13 +211,28 @@ def inspect_output(out, gen):
     return row
 
 
-def report(generators, outputs):
-    rows = [
-        inspect_output(out, generators[out["generator"]])
-        for out in sorted(outputs, key=lambda item: item["artifact"])
-    ]
-    source_run = json.loads((OUT / "source-run.json").read_bytes())
-    lines = [
+# ============================================================
+# === C) REPORT: write each section of the summary ===
+# ============================================================
+
+
+def cell(values):
+    """Join distinct values for one table cell, or show a dash if there are none."""
+    text = ", ".join(sorted({v for v in values if v}))
+    return text.replace("|", "\\|") or "—"
+
+
+def comparisons(rows):
+    """Return (format, SBOM A, SBOM B) for every two generated SBOMs of one format."""
+    pairs = []
+    for fmt in FORMAT_NAME:
+        ready = [r for r in rows if r["format"] == fmt and r["found"] is not None]
+        pairs.extend((fmt, a, b) for a, b in itertools.combinations(ready, 2))
+    return pairs
+
+
+def introduction(source_run):
+    return [
         "## SBOM generation report",
         "",
         (
@@ -200,62 +273,168 @@ def report(generators, outputs):
             "format code (`cdx` is CycloneDX, `spdx` is SPDX)."
         ),
         "",
+    ]
+
+
+def generator_table(rows):
+    lines = [
         (
             "| Generator | Generator version declared | Generator version in the SBOM | "
             "Output format | Package records | Records with a PURL | Artifact | Status |"
         ),
         "|---|---|---|---|---:|---:|---|---|",
     ]
-    for row in rows:
-        lines.append(
-            f"| {row['generator']} | {row['declared']} | {row['reported']} | "
-            f"{row['output_format']} | {row['packages']} | {row['with_purl']} | "
-            f"{row['artifact']} | {row['status']} |"
-        )
+    lines.extend(
+        f"| {row['generator']} | {row['declared']} | {row['reported']} | "
+        f"{row['output_format']} | {row['packages']} | {row['with_purl']} | "
+        f"{row['artifact']} | {row['status']} |"
+        for row in rows
+    )
+    return lines
 
-    lines.extend(["", "### Do the generators list the same package URLs?", ""])
-    pair_rows = []
-    for fmt, format_name in FORMAT_NAME.items():
-        ready = [r for r in rows if r["format"] == fmt and r["purls"] is not None]
-        for a, b in itertools.combinations(ready, 2):
-            pair_rows.append(
-                f"| {format_name} | {a['generator']} | {b['generator']} | "
-                f"{len(a['purls'])} | {len(b['purls'])} | {len(a['purls'] & b['purls'])} | "
-                f"{len(a['purls'] - b['purls'])} | {len(b['purls'] - a['purls'])} |"
-            )
-    if pair_rows:
+
+def overlap_table(rows):
+    """Count the PURLs that two generators share or do not share, per output format."""
+    lines = ["", "### Do the generators list the same package URLs?", ""]
+    pairs = comparisons(rows)
+    if not pairs:
+        lines.append(
+            "Fewer than two SBOMs of one format were generated, "
+            "so there is nothing to compare."
+        )
+        return lines
+    lines.extend(
+        [
+            (
+                "| Output format | Generator A | Generator B | Distinct PURLs in A | "
+                "Distinct PURLs in B | In both | Only in A | Only in B |"
+            ),
+            "|---|---|---|---:|---:|---:|---:|---:|",
+        ]
+    )
+    for fmt, a, b in pairs:
+        in_a, in_b = set(a["found"]), set(b["found"])
+        lines.append(
+            f"| {FORMAT_NAME[fmt]} | {a['generator']} | {b['generator']} | "
+            f"{len(in_a)} | {len(in_b)} | {len(in_a & in_b)} | "
+            f"{len(in_a - in_b)} | {len(in_b - in_a)} |"
+        )
+    lines.extend(
+        [
+            "",
+            (
+                "This compares exact PURL text only. It does not show that two records "
+                "describe the same package, and a difference can come from what each "
+                "generator was configured to scan as well as from the generator itself."
+            ),
+        ]
+    )
+    return lines
+
+
+def reasons_by_purl(rows, limit):
+    """Return {PURL: {reason: [format names]}} for PURLs in small comparison groups.
+
+    A comparison group is the PURLs found in both of two SBOMs, or in only one of them.
+    A group with 1 to `limit` PURLs is small enough to list in full.
+    """
+    reasons = {}
+    for fmt, a, b in comparisons(rows):
+        in_a, in_b = set(a["found"]), set(b["found"])
+        x, y = a["generator"], b["generator"]
+        groups = {
+            f"In both {x} and {y}": in_a & in_b,
+            f"In {x} but not in {y}": in_a - in_b,
+            f"In {y} but not in {x}": in_b - in_a,
+        }
+        for reason, purls in groups.items():
+            if 1 <= len(purls) <= limit:
+                for purl in purls:
+                    formats = reasons.setdefault(purl, {}).setdefault(reason, [])
+                    formats.append(FORMAT_NAME[fmt])
+    return reasons
+
+
+def identifier_cell(records):
+    ids = sorted(r.identifier for r in records if r.identifier)
+    shown = [f"`{ident}`" for ident in ids[:ID_LIMIT]]
+    if len(ids) > ID_LIMIT:
+        shown.append(f"and {len(ids) - ID_LIMIT} more")
+    return "<br>".join(shown) or "—"
+
+
+def purl_tables(rows, limit):
+    """Show each PURL from a small group once, with every SBOM that does or does not carry it."""
+    lines = [
+        "",
+        "### Which package URLs explain the differences?",
+        "",
+        (
+            f"A group of 1 to {limit} distinct PURLs is listed here in full. "
+            "Larger groups are counted only. "
+            "Each PURL appears once, followed by every SBOM and the record, if any, "
+            "that carries it. A record is a component (CycloneDX) or a package (SPDX)."
+        ),
+    ]
+    reasons = reasons_by_purl(rows, limit)
+    if not reasons:
+        lines.extend(["", "No group was small enough to list."])
+        return lines
+
+    for purl in sorted(reasons):
+        lines.extend(["", f"#### `{purl}`", "", "Listed because it is:", ""])
+        for reason, formats in reasons[purl].items():
+            lines.append(f"- {reason} ({', '.join(formats)})")
         lines.extend(
             [
-                (
-                    "| Output format | Generator A | Generator B | Distinct PURLs in A | "
-                    "Distinct PURLs in B | In both | Only in A | Only in B |"
-                ),
-                "|---|---|---|---:|---:|---:|---:|---:|",
-                *pair_rows,
                 "",
                 (
-                    "This compares exact PURL text only. It does not show that two records "
-                    "describe the same package, and a difference can come from what each "
-                    "generator was configured to scan as well as from the generator itself."
+                    "| Artifact | Where the PURL appears | Name recorded | Version recorded | "
+                    "Records | Record identifier (`bom-ref` in CycloneDX, `SPDXID` in SPDX) |"
                 ),
+                "|---|---|---|---|---:|---|",
             ]
         )
-    else:
-        lines.append(
-            "Fewer than two SBOMs of one format were generated, so there is "
-            "nothing to compare."
-        )
+        for row in rows:
+            records = (row["found"] or {}).get(purl, [])
+            if row["found"] is None:
+                where = "SBOM not generated"
+            elif records:
+                where = RECORD_KIND[row["format"]]
+            else:
+                where = "No record carries this PURL"
+            lines.append(
+                f"| {row['artifact']} | {where} | {cell(r.name for r in records)} | "
+                f"{cell(r.version for r in records)} | {len(records) or '—'} | "
+                f"{identifier_cell(records)} |"
+            )
 
+    lines.extend(
+        [
+            "",
+            (
+                "To find a record, open the SBOM file named in the Artifact column "
+                "(the downloadable artifact holds `<artifact>.json`) and search for the "
+                "PURL text or for a record identifier."
+            ),
+        ]
+    )
+    return lines
+
+
+def missing_section(rows):
     missing = [
         r["artifact"]
         for r in rows
         if r["status"].startswith(("Not generated", "Unreadable"))
     ]
-    if missing:
-        lines.extend(["", "### Not available", ""])
-        lines.extend(f"- {name}" for name in missing)
+    if not missing:
+        return []
+    return ["", "### Not available", "", *(f"- {name}" for name in missing)]
 
-    (OUT / "summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+def write_evidence(outputs):
+    """Keep the generators file and a checksum for every SBOM that was compared."""
     shutil.copyfile(sbom_generate.CONFIG, OUT / sbom_generate.CONFIG.name)
     with (OUT / "SHA256SUMS").open("w") as manifest:
         for out in sorted(outputs, key=lambda item: item["artifact"]):
@@ -265,6 +444,24 @@ def report(generators, outputs):
                     f"{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.name}",
                     file=manifest,
                 )
+
+
+def report(generators, outputs):
+    limit = report_setting("purl_detail_max")
+    rows = [
+        inspect_output(out, generators[out["generator"]])
+        for out in sorted(outputs, key=lambda item: item["artifact"])
+    ]
+    source_run = json.loads((OUT / "source-run.json").read_bytes())
+
+    lines = introduction(source_run)
+    lines += generator_table(rows)
+    lines += overlap_table(rows)
+    lines += purl_tables(rows, limit)
+    lines += missing_section(rows)
+
+    (OUT / "summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    write_evidence(outputs)
 
 
 def main(argv):

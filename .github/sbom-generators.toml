@@ -26,6 +26,16 @@
 # ============================================================
 
 # ============================================================
+# === REPORT: how much detail the generation report shows ===
+# ============================================================
+
+[report]
+# WHY: A small comparison result can name the exact PURLs and their records.
+# A group of 1 to purl_detail_max distinct PURLs is listed in full.
+# A larger group is counted only. 0 lists none.
+purl_detail_max = 10
+
+# ============================================================
 # === VERIFIER: checks release signatures ===
 # ============================================================
 
