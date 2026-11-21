@@ -41,6 +41,7 @@ FORMAT_NAME = {"cdx": "CycloneDX", "spdx": "SPDX"}
 RECORD_KIND = {"cdx": "CycloneDX component", "spdx": "SPDX package"}
 VERSION_KEY = {"cdx": "version", "spdx": "versionInfo"}
 ID_KEY = {"cdx": "bom-ref", "spdx": "SPDXID"}
+PLAN_ARTIFACT = "sbom-generation-plan"  # Records the outputs that did not apply.
 ID_LIMIT = 3  # Record identifiers shown per artifact before the rest are only counted.
 
 
@@ -80,8 +81,8 @@ class Record(NamedTuple):
 
 
 def download(outputs):
-    for out in outputs:
-        artifact = out["artifact"]
+    names = [out["artifact"] for out in outputs] + [PLAN_ARTIFACT]
+    for artifact in names:
         with (
             tempfile.TemporaryDirectory() as temp,
             (LOGS / f"download-{artifact}.log").open("w") as log,
@@ -196,7 +197,16 @@ def declared_version(gen):
     return gen["revision"]
 
 
-def inspect_output(out, gen):
+def skipped_outputs():
+    """Return {artifact: reason} for outputs that the generation plan skipped."""
+    path = OUT / f"{PLAN_ARTIFACT}.json"
+    if not path.is_file():
+        return {}
+    plan = json.loads(path.read_text(encoding="utf-8"))
+    return {item["artifact"]: item["reason"] for item in plan.get("skipped", [])}
+
+
+def inspect_output(out, gen, skipped=""):
     """Describe one declared output from its downloaded file.
 
     row["found"] maps each PURL to the records that carry it.
@@ -213,12 +223,16 @@ def inspect_output(out, gen):
         "output_format": f"{FORMAT_NAME[fmt]} {shown}",
         "packages": "—",
         "with_purl": "—",
+        "distinct": "—",
         "found": None,
     }
     optional = "" if gen.get("required", True) else " (optional generator)"
     path = OUT / f"{out['artifact']}.json"
     if not path.is_file():
-        row["status"] = "Not generated" + optional
+        if skipped:
+            row["status"] = f"Not applicable: {skipped}"
+        else:
+            row["status"] = "Not generated" + optional
         return row
     try:
         document = json.loads(path.read_text(encoding="utf-8"))
@@ -233,6 +247,7 @@ def inspect_output(out, gen):
     row["reported"] = ", ".join(tools) or "not reported"
     row["packages"] = count
     row["with_purl"] = sum(len(records) for records in found.values())
+    row["distinct"] = len(found)
     row["found"] = found
     if version != out["version"]:
         row["status"] = f"Format version differs from the declared {shown}" + optional
@@ -303,6 +318,10 @@ def introduction(source_run):
             "not the component or package itself, and several records can carry the same PURL."
         ),
         (
+            "- **Distinct PURLs**: how many different PURL texts those records carry. "
+            "It is lower than the number of records with a PURL when records share a PURL."
+        ),
+        (
             "- **Artifact**: the name of the downloadable file, written as the generator and a "
             "format code (`cdx` is CycloneDX, `spdx` is SPDX)."
         ),
@@ -314,14 +333,15 @@ def generator_table(rows):
     lines = [
         (
             "| Generator | Generator version declared | Generator version in the SBOM | "
-            "Output format | Package records | Records with a PURL | Artifact | Status |"
+            "Output format | Package records | Records with a PURL | Distinct PURLs | "
+            "Artifact | Status |"
         ),
-        "|---|---|---|---|---:|---:|---|---|",
+        "|---|---|---|---|---:|---:|---:|---|---|",
     ]
     lines.extend(
         f"| {row['generator']} | {row['declared']} | {row['reported']} | "
         f"{row['output_format']} | {row['packages']} | {row['with_purl']} | "
-        f"{row['artifact']} | {row['status']} |"
+        f"{row['distinct']} | {row['artifact']} | {row['status']} |"
         for row in rows
     )
     return lines
@@ -509,7 +529,9 @@ def purl_tables(rows, limit):
         )
         for row in rows:
             records = (row["found"] or {}).get(purl, [])
-            if row["found"] is None:
+            if row["status"].startswith("Not applicable"):
+                where = "Not applicable to this repository"
+            elif row["found"] is None:
                 where = "SBOM not generated"
             elif records:
                 where = RECORD_KIND[row["format"]]
@@ -552,7 +574,7 @@ def maintainer_note(source_run):
         body = "\n".join(body[1:]).strip().splitlines()
     return [
         "",
-        "### Click for Interpretation of this Generation Run",
+        "### Maintainer's interpretation of this generation run",
         "",
         *body,
     ]
@@ -584,8 +606,11 @@ def write_evidence(outputs):
 
 def report(generators, outputs):
     limit = report_setting("purl_detail_max")
+    skipped = skipped_outputs()
     rows = [
-        inspect_output(out, generators[out["generator"]])
+        inspect_output(
+            out, generators[out["generator"]], skipped.get(out["artifact"], "")
+        )
         for out in sorted(outputs, key=lambda item: item["artifact"])
     ]
     source_run = json.loads((OUT / "source-run.json").read_bytes())

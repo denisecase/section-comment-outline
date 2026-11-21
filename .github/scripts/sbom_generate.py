@@ -23,6 +23,7 @@ from pathlib import Path
 
 CONFIG = Path(".github/sbom-generators.toml")
 OUT = Path("generated")
+PLAN = Path("sbom-generation-plan.json")
 VERSION_FIELD = {"cdx": "specVersion", "spdx": "spdxVersion"}
 INSTALL_KEYS = {
     "github-release": ("package", "revision", "asset"),
@@ -66,6 +67,11 @@ def config(path=CONFIG):
             missing.append("binary")
         if missing:
             raise ValueError(f"generator.{name}: missing {', '.join(missing)}")
+        when = gen.get("when", [])
+        if not isinstance(when, list) or not all(
+            isinstance(item, str) for item in when
+        ):
+            raise ValueError(f"generator.{name}: when must be a list of file patterns")
         env = gen.get("env", {})
         if not isinstance(env, dict) or not all(
             isinstance(v, str) for v in env.values()
@@ -109,18 +115,41 @@ def config(path=CONFIG):
     return generators, verifiers, outputs
 
 
+def applies(gen):
+    """Return (True, "") if the generator applies to this repository, else (False, reason).
+
+    A generator with no `when` list always applies.
+    Otherwise it applies when any file pattern in the list matches a file here.
+    """
+    patterns = gen.get("when", [])
+    if not patterns or any(any(Path().glob(pattern)) for pattern in patterns):
+        return True, ""
+    return False, f"no file matches {', '.join(patterns)}"
+
+
 def plan():
     generators, _, outputs = config()
-    include = [
-        {
-            "artifact": out["artifact"],
-            "generator": out["generator"],
-            "format": out["format"],
-            "required": bool(generators[out["generator"]].get("required", True)),
-            "node": str(generators[out["generator"]].get("node", "")),
-        }
-        for out in sorted(outputs, key=lambda item: item["artifact"])
-    ]
+    include, skipped = [], []
+    for out in sorted(outputs, key=lambda item: item["artifact"]):
+        gen = generators[out["generator"]]
+        applicable, reason = applies(gen)
+        if not applicable:
+            skipped.append({"artifact": out["artifact"], "reason": reason})
+            continue
+        include.append(
+            {
+                "artifact": out["artifact"],
+                "generator": out["generator"],
+                "format": out["format"],
+                "required": bool(gen.get("required", True)),
+                "node": str(gen.get("node", "")),
+            }
+        )
+    if not include:
+        raise ValueError("No declared generator applies to this repository")
+    # WHY: The report needs to tell an output that did not apply
+    #      from one that failed, so the plan is kept as a file.
+    PLAN.write_text(json.dumps({"skipped": skipped}, indent=2) + "\n", encoding="utf-8")
     line = json.dumps({"include": include}, separators=(",", ":"))
     print(line)
     if os.environ.get("GITHUB_OUTPUT"):

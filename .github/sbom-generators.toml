@@ -19,6 +19,10 @@
 #      stdout = true means the generator writes to standard output instead.
 # OBS: "version" is the document version the output must report.
 #      A mismatch fails that output with the version actually received.
+# OBS: when = [file patterns] runs a generator only if one pattern matches a file
+#      in the repository. A generator without when always runs.
+#      An output that does not apply is recorded in the report,
+#      not treated as a failure.
 # OBS: required = false means a failure of that generator is recorded
 #      but does not fail the SBOM run that the inspection workflow selects.
 # OBS: A generator with a verify table has its release signature checked
@@ -127,6 +131,7 @@ certificate_oidc_issuer = "https://token.actions.githubusercontent.com"
 [generator.npm]
 package = "npm"
 install = "node-builtin"
+when = ["package.json"]
 node = "26"
 prepare = [["npm", "ci", "--ignore-scripts"]]
 required = false

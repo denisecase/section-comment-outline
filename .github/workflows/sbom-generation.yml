@@ -68,6 +68,13 @@ jobs:
         # WHY: One matrix entry per declared output. An invalid TOML file
         # fails here, before any generator runs.
 
+      - name: A3) Record the outputs that do not apply
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: sbom-generation-plan
+          path: sbom-generation-plan.json
+        # WHY: The report tells an output that did not apply from one that failed.
+
   generate:
     name: ${{ matrix.artifact }}
     needs: plan
