@@ -111,7 +111,7 @@ sha256 = "bc0fc726e017b8927a62b2d3531d7a84ee01769daf5c99ed866dced54089fdbf"
 required = true
 
 # OBS: Trivy describes the scanned directory and the lockfile as records without a PURL.
-#      It does not list the repository's own package,
+#      It does not list the scanned repository's own package,
 #      which npm and Syft list with a PURL.
 
 # OBS: Since v0.68.1, every Trivy release asset has its own .sigstore.json bundle.

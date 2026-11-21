@@ -47,12 +47,12 @@ ID_LIMIT = 3  # Record identifiers shown per artifact before the rest are only c
 
 TYPICAL_DIFFERENCES = [
     (
-        "- **The repository's own package.** A generator may list it as a record with a PURL, "
+        "- **The scanned repository package.** A generator may list it as a record with a PURL, "
         "describe the scanned directory as a record without a PURL, or leave it out. "
         "That is at most one PURL."
     ),
     (
-        "- **GitHub Actions.** Only some generators read workflow files. "
+        "- **GitHub Actions.** Only some generators read GitHub Actions workflow files. "
         "Each distinct action and version is one PURL, "
         "and each place it is used is one record."
     ),
@@ -309,7 +309,7 @@ def introduction(source_run):
         ),
         (
             "- **Package records**: the software packages listed in the SBOM, including the "
-            "repository itself. CycloneDX calls them components and SPDX calls them packages. "
+            "scanned repository itself. CycloneDX calls them components and SPDX calls them packages. "
             "Files are not counted."
         ),
         (
