@@ -9,6 +9,8 @@ Commands:
   download   Download every output declared in .github/sbom-generators.toml.
              An output that is missing is reported, not treated as an error.
   report     Write comparison/summary.md, the evidence manifest, and the checksums.
+             If .github/notes/sbom-generation-comparison/{run id}.md exists,
+             it is added to the end of the report as the maintainer's interpretation.
 
 The report reads one setting from .github/sbom-generators.toml:
   [report] purl_detail_max = N
@@ -33,12 +35,35 @@ import sbom_generate
 
 OUT = Path("comparison").resolve()
 LOGS = OUT / "logs"
+NOTES = Path(".github/notes/sbom-generation-comparison")  # One note per generation run.
 
 FORMAT_NAME = {"cdx": "CycloneDX", "spdx": "SPDX"}
 RECORD_KIND = {"cdx": "CycloneDX component", "spdx": "SPDX package"}
 VERSION_KEY = {"cdx": "version", "spdx": "versionInfo"}
 ID_KEY = {"cdx": "bom-ref", "spdx": "SPDXID"}
 ID_LIMIT = 3  # Record identifiers shown per artifact before the rest are only counted.
+
+
+TYPICAL_DIFFERENCES = [
+    (
+        "- **The repository's own package.** A generator may list it as a record with a PURL, "
+        "describe the scanned directory as a record without a PURL, or leave it out. "
+        "That is at most one PURL."
+    ),
+    (
+        "- **GitHub Actions.** Only some generators read workflow files. "
+        "Each distinct action and version is one PURL, "
+        "and each place it is used is one record."
+    ),
+    (
+        "- **Dependency scope.** Development, optional and similar dependencies are included "
+        "or left out by the generator's own settings."
+    ),
+    (
+        "- **Other inputs.** Ecosystems, build files and the like that only some generators "
+        "read. Files are not counted as package records here."
+    ),
+]
 
 
 class Record(NamedTuple):
@@ -127,31 +152,40 @@ def make_record(item, fmt):
     )
 
 
-def package_records(document, fmt):
-    """Return (package record count, records by PURL). Files are not packages."""
+def record_purls(item, fmt):
+    """Return the PURLs written on one component (CycloneDX) or package (SPDX)."""
     if fmt == "cdx":
-        pending = list(document.get("components", []))
-        root = document.get("metadata", {}).get("component")
-        if root:
-            pending.append(root)
-        items = []
-        while pending:
-            component = pending.pop()
-            pending.extend(component.get("components", []))
-            if component.get("type") != "file":
-                items.append(component)
-        purls = lambda item: [item["purl"]] if item.get("purl") else []
-    else:
-        items = document.get("packages", [])
-        purls = lambda item: [
-            ref["referenceLocator"]
-            for ref in item.get("externalRefs", [])
-            if ref.get("referenceType") == "purl"
-        ]
+        return [item["purl"]] if item.get("purl") else []
+    return [
+        ref["referenceLocator"]
+        for ref in item.get("externalRefs", [])
+        if ref.get("referenceType") == "purl"
+    ]
 
+
+def all_items(document, fmt):
+    """Return every component or package record. Files are not packages."""
+    if fmt == "spdx":
+        return document.get("packages", [])
+    pending = list(document.get("components", []))
+    root = document.get("metadata", {}).get("component")
+    if root:
+        pending.append(root)
+    items = []
+    while pending:
+        component = pending.pop()
+        pending.extend(component.get("components", []))
+        if component.get("type") != "file":
+            items.append(component)
+    return items
+
+
+def package_records(document, fmt):
+    """Return (package record count, {PURL: [Record, ...]})."""
+    items = all_items(document, fmt)
     by_purl = {}
     for item in items:
-        for purl in purls(item):
+        for purl in record_purls(item, fmt):
             by_purl.setdefault(purl, []).append(make_record(item, fmt))
     return len(items), by_purl
 
@@ -328,16 +362,84 @@ def overlap_table(rows):
                 "generator was configured to scan as well as from the generator itself."
             ),
             "",
+            "Generators often differ in what they include, not in how they write a PURL:",
+            "",
+            *TYPICAL_DIFFERENCES,
+            "",
             (
-                "A generator may list the repository's own package as a record with a PURL, "
-                "or describe the scanned directory and give it no PURL. "
-                "That may account for one PURL that only some generators list."
-                "For example, "
-                "Trivy may describe the scanned directory and lockfile as records without a PURL."
-                "It may not list the repository's own package, which npm and Syft list with a PURL."
+                "A PURL that only one generator lists is usually a difference in scope. "
+                "A difference in identity looks different: the same package written two ways, "
+                "so each generator has a PURL that the other lacks."
             ),
         ]
     )
+    return lines
+
+
+def group_rows(label, purls, sources, limit):
+    """Table rows for one group of PURLs: each one listed, or only a count if large."""
+    if not purls:
+        return [f"| {label} | 0 | none | | | |"]
+    if len(purls) > limit:
+        return [f"| {label} | {len(purls)} | not listed (more than {limit}) | | | |"]
+    rows = []
+    for index, purl in enumerate(sorted(purls)):
+        found = [(generator, by_purl[purl]) for generator, by_purl in sources]
+        if len(found) == 1:
+            counts = str(len(found[0][1]))
+            identifiers = identifier_cell(found[0][1])
+        else:
+            counts = ", ".join(
+                f"{generator} {len(records)}" for generator, records in found
+            )
+            identifiers = "<br>".join(
+                f"{generator}: {identifier_cell(records)}"
+                for generator, records in found
+            )
+        names = cell(
+            f"{r.name} {r.version}".strip() for _, records in found for r in records
+        )
+        first = index == 0
+        rows.append(
+            f"| {label if first else ''} | {len(purls) if first else ''} | `{purl}` | "
+            f"{counts} | {names} | {identifiers} |"
+        )
+    return rows
+
+
+def comparison_tables(rows, limit):
+    """For each two SBOMs of one format, list the small groups of shared or different PURLs."""
+    pairs = comparisons(rows)
+    if not pairs:
+        return []
+    lines = [
+        "",
+        "### Comparison details: which package URLs are shared or different?",
+        "",
+        (
+            f"For each comparison above, a group of 1 to {limit} distinct PURLs is listed "
+            "with the records that carry it. Larger groups are counted only."
+        ),
+    ]
+    for fmt, a, b in pairs:
+        x, y = a["generator"], b["generator"]
+        first, second = (x, a["found"]), (y, b["found"])
+        in_a, in_b = set(a["found"]), set(b["found"])
+        lines.extend(
+            [
+                "",
+                f"#### {FORMAT_NAME[fmt]}: {x} and {y}",
+                "",
+                (
+                    "| Found in | Distinct PURLs | PURL | Records carrying it | "
+                    f"Record name and version | Record identifier (`{ID_KEY[fmt]}`) |"
+                ),
+                "|---|---:|---|---|---|---|",
+                *group_rows("Both", in_a & in_b, [first, second], limit),
+                *group_rows(f"Only {x}", in_a - in_b, [first], limit),
+                *group_rows(f"Only {y}", in_b - in_a, [second], limit),
+            ]
+        )
     return lines
 
 
@@ -374,20 +476,21 @@ def identifier_cell(records):
 
 def purl_tables(rows, limit):
     """Show each PURL from a small group once, with every SBOM that does or does not carry it."""
+    if not comparisons(rows):
+        return []
     lines = [
         "",
-        "### Which package URLs explain the differences?",
+        "### PURL details: which SBOMs carry each listed package URL?",
         "",
         (
-            f"A group of 1 to {limit} distinct PURLs is listed here in full. "
-            "Larger groups are counted only. "
-            "Each PURL appears once, followed by every SBOM and the record, if any, "
-            "that carries it. A record is a component (CycloneDX) or a package (SPDX)."
+            "Each PURL from a small group above appears once, with every SBOM and the "
+            "record, if any, that carries it. "
+            "A record is a component (CycloneDX) or a package (SPDX)."
         ),
     ]
     reasons = reasons_by_purl(rows, limit)
     if not reasons:
-        lines.extend(["", "No group was small enough to list."])
+        lines.extend(["", f"No group of 1 to {limit} PURLs was found."])
         return lines
 
     for purl in sorted(reasons):
@@ -418,17 +521,41 @@ def purl_tables(rows, limit):
                 f"{identifier_cell(records)} |"
             )
 
-    lines.extend(
-        [
-            "",
-            (
-                "To find a record, open the SBOM file named in the Artifact column "
-                "(the downloadable artifact holds `<artifact>.json`) and search for the "
-                "PURL text or for a record identifier."
-            ),
-        ]
-    )
     return lines
+
+
+def find_note(rows):
+    if not comparisons(rows):
+        return []
+    return [
+        "",
+        (
+            "To find a record, open the SBOM file named in the artifact (the downloadable "
+            "artifact holds `<artifact>.json`) and search for the PURL text or for a record "
+            "identifier. The identifier is the `bom-ref` value (CycloneDX) or the `SPDXID` "
+            "value (SPDX) of the record."
+        ),
+    ]
+
+
+def maintainer_note(source_run):
+    """Return the maintainer's note for this generation run, if one was written.
+
+    WHY: An interpretation applies to one generation run,
+         so the note is named for the run that produced the SBOMs.
+    """
+    path = NOTES / f"{source_run['id']}.md"
+    if not path.is_file():
+        return []
+    body = path.read_text(encoding="utf-8").strip().splitlines()
+    if body and body[0].startswith("# "):  # The report supplies the heading.
+        body = "\n".join(body[1:]).strip().splitlines()
+    return [
+        "",
+        "### Click for Interpretation of this Generation Run",
+        "",
+        *body,
+    ]
 
 
 def missing_section(rows):
@@ -466,26 +593,11 @@ def report(generators, outputs):
     lines = introduction(source_run)
     lines += generator_table(rows)
     lines += overlap_table(rows)
+    lines += maintainer_note(source_run)
+    lines += comparison_tables(rows, limit)
     lines += purl_tables(rows, limit)
+    lines += find_note(rows)
     lines += missing_section(rows)
-
-    # WHY: A maintainer's interpretation applies to one generation run.
-    #      The source run ID associates the note with the artifacts it describes.
-    note_path = (
-        Path(".github/notes/sbom-generation-comparison") / f"{source_run['id']}.md"
-    )
-    if note_path.is_file():
-        lines.extend(
-            [
-                "",
-                "<details>",
-                "<summary>Maintainer's interpretation of this generation run</summary>",
-                "",
-                note_path.read_text(encoding="utf-8").strip(),
-                "",
-                "</details>",
-            ]
-        )
 
     (OUT / "summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     write_evidence(outputs)
